@@ -191,6 +191,19 @@ evidence files `.agent-optimize/benchmarks/20261106T161559683343Z/comparison.jso
 (16:28:55–16:31:42 UTC), both on November 6, 2026. These local files are not
 distributed with the repository. To rerun the experiment, see below.
 
+## Continuous integration and published docs
+
+GitHub Actions runs the offline test suite on Windows, macOS, and Linux with
+Python 3.12 on every push and pull request. This includes the strict Zensical
+documentation build. CI excludes live API tests and needs no API credentials.
+The workflow can also be started manually from the Actions tab.
+
+After all three test jobs and the documentation build succeed on `main`, the
+workflow publishes [the documentation](https://gordonwatts.github.io/agent-optimize/)
+to GitHub Pages. In the repository's **Settings → Pages → Build and deployment**,
+select **GitHub Actions** as the source before the first deployment. Pull requests
+and other branches build and check the docs without publishing them.
+
 ## Install and run
 
 ### Run from GitHub with `uvx`

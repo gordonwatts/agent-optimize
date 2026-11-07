@@ -1,5 +1,6 @@
 [project]
 site_name = "agent-optimize"
+site_url = "https://gordonwatts.github.io/agent-optimize/"
 site_description = "Bounded local optimization of Awkward filter-and-sum computations"
 docs_dir = "."
 site_dir = "_build"
