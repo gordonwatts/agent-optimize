@@ -51,6 +51,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .cache/
+.uv-cache/
 .mypy_cache/
 .dmypy.json
 dmypy.json
@@ -75,3 +76,8 @@ Desktop.ini
 
 # Logs
 *.log
+
+# Local optimization artifacts and Numba compiled caches
+.agent-optimize/
+*.nbc
+*.nbi

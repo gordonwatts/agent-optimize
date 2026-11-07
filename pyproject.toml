@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-optimize"
+version = "0.1.0"
+description = "Local experiments for optimized Awkward array computations"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "awkward>=2.8,<3",
+    "numpy>=2.2,<3",
+    "numba>=0.61,<1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "openai>=2,<3", "pydantic>=2,<3"]
+docs = ["zensical>=0.0.19,<1"]
+openai = ["openai>=2,<3", "pydantic>=2,<3"]
+
+[project.scripts]
+agent-optimize = "agent_optimize.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: opt-in real OpenAI API calls (require AGENT_OPTIMIZE_LIVE_TESTS=1)"]
