@@ -1,10 +1,12 @@
 from pathlib import Path
 import shutil
+from types import SimpleNamespace
 
 import pytest
 
 import agent_optimize.artifacts as artifacts
 import agent_optimize.dispatch as dispatch
+import agent_optimize.evaluator as evaluator
 import agent_optimize.performance as performance
 from agent_optimize.evaluator import evaluate_contract, evaluate_session
 from agent_optimize.experiment import location_key
@@ -134,7 +136,7 @@ def test_correctness_passing_candidate_with_print_is_rejected_before_timing_or_a
     assert "safe for reuse" in result["reason"]
 
 
-def test_expired_experiment_deadline_never_launches_timing_or_saves_an_artifact(accepted, tmp_path):
+def test_expired_experiment_deadline_never_launches_timing_or_saves_an_artifact(accepted, tmp_path, monkeypatch):
     root = tmp_path / "expired"
     session = create_session(root)
     Recorder(session).invoke(accepted["module"].ht.__wrapped__, (accepted["module"].make_events(),), {})
@@ -145,7 +147,10 @@ def test_expired_experiment_deadline_never_launches_timing_or_saves_an_artifact(
 
     from agent_optimize.search import SearchLimits
 
-    result = evaluate_session(session, report, search_limits=SearchLimits(function_seconds=1e-12), timing_provider=unexpected)
+    # Expire the function budget before its first check, independent of clock resolution.
+    ticks = iter([100.0, 100.0, 101.0])
+    monkeypatch.setattr(evaluator, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
+    result = evaluate_session(session, report, search_limits=SearchLimits(function_seconds=0.5), timing_provider=unexpected)
     assert result["functions"][0]["search"]["stop"] == "deadline"
     assert result["functions"][0]["evaluations"] == []
     assert not (root / "accepted").exists()

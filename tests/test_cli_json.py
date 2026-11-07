@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import sysconfig
 import textwrap
 
 import pytest
@@ -10,7 +11,7 @@ import pytest
 from agent_optimize.store import read_json
 from test_dispatch import SOURCE
 
-CONSOLE = Path(sys.executable).with_name("agent-optimize.exe" if os.name == "nt" else "agent-optimize")
+CONSOLE = Path(sysconfig.get_path("scripts")) / ("agent-optimize.exe" if os.name == "nt" else "agent-optimize")
 
 
 def invoke(tmp_path, source, *options, bootstrap=None):

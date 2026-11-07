@@ -3,13 +3,14 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import sysconfig
 
 import pytest
 
 from agent_optimize.cli import main
 
 ROOT = Path(__file__).resolve().parents[1]
-CONSOLE = Path(sys.executable).with_name("agent-optimize.exe" if os.name == "nt" else "agent-optimize")
+CONSOLE = Path(sysconfig.get_path("scripts")) / ("agent-optimize.exe" if os.name == "nt" else "agent-optimize")
 
 
 def test_installed_console_forwards_arguments_spaces_and_flags(tmp_path):
