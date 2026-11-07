@@ -110,11 +110,11 @@ recordings, artifacts, and caches.
 
 ## Source identity and reproduction
 
-At this documentation checkpoint, Git HEAD is baseline commit
-`c6305581d42eb241468c3d40dfb78d87b81c36fe`. The implementation includes uncommitted
-changes, so that commit alone does not identify the files under test. Compare a
-fresh source manifest after synchronizing the current files, including uncommitted
-files, into the Linux-side checkout.
+At the earlier verification checkpoint, Git HEAD was baseline commit
+`c6305581d42eb241468c3d40dfb78d87b81c36fe`, and the implementation under test
+included uncommitted changes. That baseline alone therefore does not identify
+those tested files. For a new comparison, synchronize the current source into
+the Linux-side checkout and compare a fresh source manifest.
 
 The earlier step-6 native Windows inventory is retained at
 `.agent-optimize/verification/windows-7c87cc7677b44141a61a7e829634d78e/source-manifest.json`,
