@@ -15,14 +15,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-q16 = [
-    "typer>=0.12",
-    "func_adl_servicex_xaodr25",
-    "servicex>=3.0",
-    "jinja2",
-    "uproot>=5",
-    "matplotlib",
-]
 test = ["pytest>=8,<10", "openai>=2,<3", "pydantic>=2,<3", "typer>=0.12"]
 docs = ["zensical>=0.0.19,<1"]
 openai = ["openai>=2,<3", "pydantic>=2,<3"]
@@ -35,4 +27,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["live: opt-in real OpenAI API calls (require AGENT_OPTIMIZE_LIVE_TESTS=1)"]
+markers = [
+    "live: opt-in real OpenAI API calls (require AGENT_OPTIMIZE_LIVE_TESTS=1)",
+    "uv: opt-in uv dependency resolution (require AGENT_OPTIMIZE_UV_TESTS=1)",
+]

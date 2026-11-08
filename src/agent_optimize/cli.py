@@ -43,7 +43,7 @@ def _parser():
     run.add_argument("--api-key", help="OpenAI credential; prefer AGENT_OPTIMIZE_OAI_API_KEY or .env to avoid shell history")
     run.add_argument("--provider-seconds", type=float, default=30)
     run.add_argument("--max-output-tokens", type=int, default=4096)
-    run.add_argument("command", nargs=argparse.REMAINDER)
+    run.add_argument("command", nargs=argparse.REMAINDER, help="script.py [script arguments], or -- <command> [arguments]; optimizer options go before the script")
     return parser
 
 
@@ -87,7 +87,7 @@ def _run(arguments):
     options = parser.parse_args(arguments)
     command = options.command
     if not command or command[0] != "--" or len(command) == 1:
-        parser.error("run requires a command after --, for example: run -- python analysis.py")
+        parser.error("run requires script.py [arguments] or a command after --, for example: run -- python analysis.py")
     if options.max_capture_bytes <= 0 or options.max_calls <= 0:
         parser.error("--max-capture-bytes and --max-calls must be positive")
     from .search import SearchLimits
@@ -108,6 +108,7 @@ def _run(arguments):
     base = {"schema_version": 1, "child_exit_code": None, "functions": [], "limits": {"max_capture_bytes": options.max_capture_bytes, "max_calls_per_function": options.max_calls}, "search_limits": asdict(limits)}
     base["provider"] = provider.identity
     base["dispatch_mode"] = selected_mode
+    base["python_executable"] = sys.executable
     try:
         session = create_session(options.artifact_root, max_bytes=options.max_capture_bytes, max_calls=options.max_calls, provider=provider.identity)
     except (OSError, ValueError) as error:
@@ -204,6 +205,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     prefix = arguments[:arguments.index("--")] if "--" in arguments else arguments
     json_mode = "--json" in prefix
     try:
+        options = _parser().parse_args(arguments)
+        command = options.command
+        if command and command[0] != "--" and Path(command[0]).suffix.lower() == ".py":
+            prefix = arguments[:len(arguments) - len(command)]
+            json_mode = options.json
+            if options.max_capture_bytes <= 0 or options.max_calls <= 0:
+                raise ConfigurationError("--max-capture-bytes and --max-calls must be positive")
+            from .search import SearchLimits
+            from .provider import ProviderSettings
+            from .modes import dispatch_mode
+            from .script import launch_script
+            try:
+                dispatch_mode(options.dispatch_mode)
+                SearchLimits(options.max_proposals, options.function_seconds, options.worker_seconds, options.search_seconds, options.max_request_bytes, options.max_response_bytes, options.max_extra_cases)
+                ProviderSettings(options.provider, options.model, options.provider_seconds, options.max_output_tokens)
+                return launch_script(arguments, command, json_mode=json_mode, provider=options.provider)
+            except ValueError as error:
+                raise ConfigurationError(str(error)) from error
+            except KeyboardInterrupt:
+                return 130
         result = _run(arguments)
     except ConfigurationError as error:
         message = str(error)

@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.13,<3.14"
 # dependencies = [
-#   "agent-optimize[q16] @ git+https://github.com/gordonwatts/agent-optimize.git",
+#   "agent-optimize @ git+https://github.com/gordonwatts/agent-optimize.git@b16e500bccd390ee56c9ef2a40707d96e4852198",
 #   "typer>=0.12",
 #   "func_adl_servicex_xaodr25",
 #   "servicex>=3.0",
@@ -18,6 +18,7 @@
     uv run --script q16_ttbar.py
     uv run --script q16_ttbar.py --n-files 2 --output-dir plots
     uv run --script q16_ttbar.py --input-file delivered.root
+    agent-optimize run q16_ttbar.py --n-files 1
 
 uv installs the dependencies declared above; no project or benchmark runner is
 needed. Fetching data requires your own ServiceX endpoint and credentials in

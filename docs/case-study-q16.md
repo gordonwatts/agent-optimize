@@ -13,82 +13,85 @@ and scoring those candidates. This example optimizes the second stage.
 ServiceX delivery, ROOT reading, neutrino reconstruction, candidate construction,
 and plotting stay outside the decorated function.
 
-## Run from a checkout in Ubuntu on WSL2
+## Ordinary execution in Ubuntu on WSL2
 
-The `q16` optional dependency group installs Typer, the PHYSLITE query builder,
-ServiceX, Jinja2, Uproot, and Matplotlib. Awkward and NumPy are core dependencies.
-Python 3.12 and 3.13 are supported by the library; this standalone script requests
-3.13. The interpreter running the optimization CLI must have the analysis
-dependencies installed, so recording and replay workers use the same environment.
-Keep the Linux environment separate from a native Windows environment in the
-same checkout:
+The script's inline metadata declares Typer, the PHYSLITE query builder, ServiceX,
+Jinja2, Uproot, Awkward, NumPy, Matplotlib, and the ordinary `agent-optimize`
+package. The library has no q16 dependency extra. The script requests Python
+3.13 and pins its library dependency to a Git revision for repeatability.
 
 ```bash
-export UV_PROJECT_ENVIRONMENT="$PWD/.venv-wsl"
-export UV_CACHE_DIR="$PWD/.uv-cache/wsl"
+uv run --script examples/q16_ttbar.py --n-files 1 --output-dir plots/q16
 ```
 
-```bash
-uv run --python 3.13 --extra q16 python examples/q16_ttbar.py \
-  --n-files 1 --output-dir plots/q16
-```
+uv prepares the script environment. This ordinary run uses the reference or a
+saved replacement and does not start an optimization search. A downloaded copy
+can likewise run as `uv run --script q16_ttbar.py`.
 
 ServiceX normally discovers `servicex.yaml` or `.servicex` in the working
 directory, its parents, or the Linux home directory. A configuration in the
 Windows home directory may need an explicit path:
 
 ```bash
-uv run --python 3.13 --extra q16 python examples/q16_ttbar.py \
+uv run --script examples/q16_ttbar.py \
   --servicex-config /mnt/c/Users/YOUR_NAME/servicex.yaml --output-dir plots/q16
 ```
 
-Credentials and endpoint settings stay in that local configuration. Never add it
-to the example or commit it. `--n-files 0` requests the full dataset; the default
-requests one file. Previously delivered files can be reused with repeated
-`--input-file` arguments. These must contain the query's transformed branches,
-rather than untransformed DAOD data.
-
-The script also retains inline dependency metadata for standalone `uv run
---script` use after the supporting changes are merged. When developing this PR,
-use the checkout commands above so the local library changes are used.
+Credentials and endpoint settings stay in that local configuration. `--n-files 0`
+requests the full dataset; the default requests one file. Previously delivered
+files can be reused with repeated `--input-file` arguments. These must contain
+the query's transformed branches, rather than untransformed DAOD data.
 
 ## Record, evaluate, and save a replacement
 
+Install the generic CLI once, with uv available on PATH:
+
 ```bash
-uv run --python 3.13 --extra q16 python -m agent_optimize run \
+uv tool install git+https://github.com/gordonwatts/agent-optimize.git
+agent-optimize run \
   --artifact-root .agent-optimize/q16 --max-calls 2 \
   --worker-seconds 60 --function-seconds 240 --search-seconds 300 \
-  -- python examples/q16_ttbar.py --n-files 1 --output-dir plots/q16
+  examples/q16_ttbar.py --n-files 1 --output-dir plots/q16
 ```
 
-Add `--servicex-config PATH` to the analysis command if needed. The two recorded
-calls are complete event batches, each containing up to 128 selected events.
-Capture and search budgets still apply. Later batches execute the reference
-during recording without additional captures.
+Optimizer options go before the script path. Analysis options follow it; no
+`--script` flag or command separator is required. Add `--servicex-config PATH`
+to the analysis arguments if needed. When developing an unmerged checkout,
+install the CLI with `uv tool install --editable .` instead of the GitHub URL.
+The script still controls the version of the library used for its analysis.
 
-The deterministic local provider now understands this scoring graph. It proposes
-a Numba loop, checks the frozen reference and mandatory cases, and measures
-ordinary dispatch before deciding whether to save it. The first mock proposal
-deliberately has an output error to exercise rejection and feedback; a rejected
-proposal does not replace the reference. A replacement is saved only if it passes
-the correctness and performance gates. Inspect `report.json` for the actual
-outcome and timings.
+The launcher reads `requires-python` and passes the inline dependencies to uv,
+then starts the controller in the resolved environment. Analysis and all replay,
+correctness, compilation, and timing workers use that interpreter. The script's
+library pin is honored; no q16-specific installation or active-environment
+modification is needed. The [user guide](index.md) describes current metadata
+support and the explicit command form for already prepared environments.
 
-To try the optional OpenAI provider, install `--extra openai` as well and add
-`--provider openai` before the command separator. See the
-[provider guide](live-provider.md) for credentials and request limits. This case
-study's local-provider results do not establish how an OpenAI search will perform.
+The two recorded calls are complete batches, each containing up to 128 selected
+events. Capture and search budgets still apply. Later batches execute the
+reference during recording without additional captures.
+
+The deterministic local provider proposes a Numba loop, checks the frozen
+reference and mandatory cases, and measures ordinary dispatch before deciding
+whether to save it. The first mock proposal deliberately has an output error
+to exercise rejection and feedback. A replacement is saved only after passing
+the correctness and performance gates. Inspect `report.json` for the outcome.
+
+To try the optional OpenAI provider, add `--provider openai` before the script
+path. The launcher requests the generic OpenAI extra in the same environment.
+See the [provider guide](live-provider.md) for credentials and request limits.
+This case study's measurements use the local provider.
 
 Reuse a saved replacement from the same working directory and artifact root:
 
 ```bash
 AGENT_OPTIMIZE_ARTIFACT_ROOT="$PWD/.agent-optimize/q16" \
-  uv run --python 3.13 --extra q16 python examples/q16_ttbar.py \
-  --n-files 1 --output-dir plots/q16
+  uv run --script examples/q16_ttbar.py --n-files 1 --output-dir plots/q16
 ```
 
 Fast dispatch is the default. `AGENT_OPTIMIZE_MODE=careful` enables repeated
-compatibility checks; see the [user guide](index.md) for the tradeoff.
+compatibility checks. On a shared Windows/WSL checkout, uv's script environments
+are separate from a project `.venv`; no Windows environment needs to be replaced.
 
 ## The numerical boundary
 
@@ -147,7 +150,8 @@ workstation, rather than a general performance guarantee.
 To repeat the full-data check with a transformed ROOT file:
 
 ```bash
-uv run --python 3.13 --extra q16 python benchmarks/q16_reconstruction.py \
+uv run --no-project --python 3.13 --with-requirements examples/q16_ttbar.py \
+  python benchmarks/q16_reconstruction.py \
   --input-file delivered.root --artifact-root .agent-optimize/q16 --repeats 3
 ```
 
@@ -162,7 +166,8 @@ recorded calls and independent cases covering zero events, empty lists, varying
 and larger candidate counts, ties, boundaries, NaN payloads, infinities, and signed
 zeros. Optional analysis tests also read a generated transformed ROOT tree and
 exercise the plotting CLI. CI covers Python 3.12 and 3.13 on Linux, macOS, and
-Windows, plus the full optional analysis dependency set on Linux.
+Windows, plus actual uv environment resolution on Windows and Linux and the q16
+script-owned analysis dependencies on Linux.
 
 Python 3.13 exposed two source-verification issues: equal code objects can have
 different internal sharing after loading bytecode, and classes have additional
@@ -173,9 +178,9 @@ reducer. Existing replacement and mutation checks remain in place.
 For an offline execution check:
 
 ```bash
-uv run --python 3.13 --extra q16 python -m agent_optimize run \
+agent-optimize run \
   --artifact-root .agent-optimize/q16-synthetic --max-calls 2 \
-  -- python examples/q16_ttbar.py --synthetic-events 256 \
+  examples/q16_ttbar.py --synthetic-events 256 \
   --output-dir plots/q16-synthetic
 ```
 

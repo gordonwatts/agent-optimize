@@ -11,9 +11,36 @@ explicit `--provider openai` enables the optional official OpenAI SDK integratio
 
 For a ServiceX analysis with a larger dependency set, see the
 [q16 WSL2 case study](docs/case-study-q16.md) and
-[standalone example](examples/q16_ttbar.py). Install `.[q16]` to include its
-analysis dependencies. The library supports Python 3.12 and 3.13; q16 uses 3.13.
+[standalone example](examples/q16_ttbar.py). The script declares its own analysis
+dependencies in its inline metadata; there is no analysis-specific package extra.
+The library supports Python 3.12 and 3.13; q16 uses 3.13.
 Its decorated boundary fuses candidate mass scoring and first-minimum selection.
+
+## Script-owned environments
+
+With uv on PATH, pass a Python script directly to resolve its inline dependencies
+and Python requirement before recording:
+
+```text
+agent-optimize run --max-calls 2 examples/q16_ttbar.py --n-files 1
+```
+
+Optimizer options go before the script; all following arguments belong to the
+script. The controller, analysis, and replay/evaluation workers use the resolved
+interpreter. A script's declared `agent-optimize` requirement, including its pin
+or Git source, is honored. Without that declaration the launcher's installed
+package source/version is used. `--provider openai` adds the generic OpenAI extra.
+
+Ordinary execution remains:
+
+```text
+uv run --script examples/q16_ttbar.py --n-files 1
+```
+
+Ordinary execution can reuse saved replacements; it does not start a search.
+The existing `agent-optimize run -- <command> [arguments]` form executes a command
+in its supplied environment. See the [user guide](docs/index.md) for scope and
+configuration details.
 
 ## Fast execution and optional careful checks
 
