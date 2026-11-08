@@ -13,7 +13,7 @@ when explicitly selected; the independent evaluator owns correctness and eligibi
 
 ## Install and run
 
-Use Python 3.12 and a separate environment on each platform. From the checkout's
+Use Python 3.12 or 3.13 and a separate environment on each platform. From the checkout's
 root directory on native Windows:
 
 ```powershell

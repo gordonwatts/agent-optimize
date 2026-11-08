@@ -1,7 +1,7 @@
 [project]
 site_name = "agent-optimize"
 site_url = "https://gordonwatts.github.io/agent-optimize/"
-site_description = "Bounded local optimization of Awkward filter-and-sum computations"
+site_description = "Bounded local optimization of numeric Awkward computations"
 docs_dir = "."
 site_dir = "_build"
 exclude_docs = """
@@ -12,6 +12,7 @@ zensical.toml
 nav = [
   { "User guide" = "index.md" },
   { "Platform verification" = "verification.md" },
+  { "Case study: q16 in WSL2" = "case-study-q16.md" },
   { "Optional OpenAI provider" = "live-provider.md" },
   { "First round workflow" = "ux-first-round.md" },
   { "Implementation notes" = "implementation-notes.md" },

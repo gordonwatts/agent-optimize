@@ -20,8 +20,8 @@ import types
 from .store import json_bytes
 
 MODULE_SYMBOLS = {
-    "awkward": {"sum", "to_numpy", "values_astype"},
-    "numpy": {"sum", "asarray", "abs", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool_"},
+    "awkward": {"sum", "to_numpy", "values_astype", "argmin", "local_index"},
+    "numpy": {"sum", "asarray", "abs", "sqrt", "maximum", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool_"},
     "math": {"fabs", "isfinite", "isnan", "isinf", "pi", "e", "tau"},
 }
 BUILTINS = {"abs"}
@@ -53,7 +53,10 @@ def code_fingerprint(code):
         if isinstance(value, frozenset):
             return tuple(sorted((payload(item) for item in value), key=repr))
         return value
-    return hashlib.sha256(marshal.dumps(payload(code))).hexdigest()
+    # Version 3+ encodes object-sharing references. Equal code read from a .pyc
+    # and freshly compiled source can have different sharing (notably on 3.13).
+    # Version 2 serializes values without those identity-dependent references.
+    return hashlib.sha256(marshal.dumps(payload(code), 2)).hexdigest()
 
 
 _installed_codes = {}
@@ -146,14 +149,17 @@ def _binding_fingerprint(value):
                 raise UnsupportedReference("modified NumPy metadata dependency is unsupported")
             result["attributes"] = {key: state(getattr(item, key), depth + 1) for key in sorted(vars(NumpyMetadata)) if not key.startswith("_")}
             return result
-        if isinstance(item, type) and module == "awkward._reducers" and name == "Sum":
+        if isinstance(item, type) and module == "awkward._reducers" and name in {"Sum", "ArgMin"}:
             from awkward._reducers import KernelReducer
 
             allowed = {
                 "name", "preferred_dtype", "needs_position", "__init__", "apply", "axis_none_reducer",
                 "__module__", "__doc__", "__annotations__", "__parameters__", "__abstractmethods__",
                 "__subclasshook__", "_is_protocol", "_abc_impl",
+                "__firstlineno__", "__static_attributes__",
             }
+            if name == "ArgMin":
+                allowed.add("_dtype_for_kernel")
             if (
                 type(item) is not type(KernelReducer) or item.__bases__ != (KernelReducer,)
                 or set(vars(item)) - allowed or item.__abstractmethods__
@@ -169,11 +175,15 @@ def _binding_fingerprint(value):
             if type(policy["name"]) is not str or any(type(policy[key]) is not bool for key in ("needs_position", "_use32", "_is_protocol")) or not isinstance(policy["preferred_dtype"], type):
                 raise UnsupportedReference("modified sum reducer policy descriptors are unsupported")
             result["policy"] = {key: state(value, depth + 1) for key, value in policy.items()}
+            result["class_metadata"] = {key: state(vars(item)[key], depth + 1) for key in ("__firstlineno__", "__static_attributes__") if key in vars(item)}
             methods = {}
             class_methods = {"_length_for_kernel", "_dtype_for_kernel", "_promote_integer_rank"}
             for method in ("__init__", "apply", "axis_none_reducer", *sorted(class_methods)):
                 # Resolve the raw descriptor without running custom __get__ code.
                 descriptor = member(method)
+                if name == "ArgMin" and method == "__init__" and descriptor is object.__init__:
+                    methods[method] = {"builtin": "object.__init__"}
+                    continue
                 expected = classmethod if method in class_methods else types.FunctionType
                 if type(descriptor) is not expected:
                     raise UnsupportedReference(f"modified sum reducer method binding: {method}")
@@ -288,7 +298,7 @@ def _validate_function(node, modules: dict[str, str], symbols: set[str], constan
         ast.Name, ast.Load, ast.Store, ast.Constant, ast.Attribute, ast.Subscript,
         ast.Slice, ast.Tuple, ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare,
         ast.Call, ast.keyword, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv,
-        ast.Mod, ast.BitAnd, ast.BitOr, ast.BitXor, ast.USub, ast.UAdd,
+        ast.Mod, ast.Pow, ast.BitAnd, ast.BitOr, ast.BitXor, ast.USub, ast.UAdd,
         ast.Invert, ast.Not, ast.And, ast.Or, ast.Eq, ast.NotEq, ast.Lt,
         ast.LtE, ast.Gt, ast.GtE,
     )

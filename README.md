@@ -3,11 +3,17 @@
 Decorate an Awkward computation, record an analysis once, and evaluate bounded
 proposals with independent correctness checks and measured eligibility.
 Compatible saved implementations are reused automatically with Python fallback.
-The command runs your script once, checks the compiled filter-and-sum against
+The command runs your script once, checks the compiled numerical kernel against
 recorded and generated inputs, and saves it only after repeatable improvement.
 The default generator is a deterministic local mock exercising the real Numba
 evaluation and feedback loop. It needs no credential or network access. An
 explicit `--provider openai` enables the optional official OpenAI SDK integration.
+
+For a ServiceX analysis with a larger dependency set, see the
+[q16 WSL2 case study](docs/case-study-q16.md) and
+[standalone example](examples/q16_ttbar.py). Install `.[q16]` to include its
+analysis dependencies. The library supports Python 3.12 and 3.13; q16 uses 3.13.
+Its decorated boundary fuses candidate mass scoring and first-minimum selection.
 
 ## Fast execution and optional careful checks
 

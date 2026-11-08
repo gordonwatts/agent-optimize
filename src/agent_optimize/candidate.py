@@ -106,9 +106,12 @@ def make_contract(graph: FilterSumGraph, arguments: dict, result_metadata: dict)
     types = {name: scalar_type(arguments[name]) for name in scalar_names}
     if not set(graph.scalar_arguments) <= set(scalar_names):
         raise UnsupportedGraph("missing scalar selection argument")
-    if _predicate_type(graph.predicate, field_types, types) != "bool":
+    is_argmin = getattr(graph, "reduction", None) == "argmin"
+    if is_argmin and (any(np.dtype(dtype) != np.dtype("float64") for dtype in field_types.values()) or graph.scalar_arguments or np.dtype(result_metadata["dtype"]) != np.dtype("float64")):
+        raise UnsupportedGraph("argmin currently requires float64 fields/output and no scalar arguments")
+    if not is_argmin and _predicate_type(graph.predicate, field_types, types) != "bool":
         raise UnsupportedGraph("the record filter must be Boolean, not an integer index")
-    if not predicate_is_array(graph.predicate):
+    if not is_argmin and not predicate_is_array(graph.predicate):
         raise UnsupportedGraph("the record filter must be a Boolean array mask, not scalar indexing")
     if result_metadata["kind"] not in ("awkward", "numpy") or result_metadata["length"] != len(array):
         raise UnsupportedGraph("the reference must return one flat numeric value for every event")
@@ -165,6 +168,9 @@ def wrap_output(contract: InputContract, raw, event_count: int):
 
 def fused_candidate_source(graph: FilterSumGraph, contract: InputContract) -> str:
     """Handwritten loop template; no fast-math, reassociation, or sample values."""
+    if getattr(graph, "reduction", None) == "argmin":
+        from .argmin import candidate_source
+        return candidate_source(graph, contract)
     def render(node):
         match node["op"]:
             case "field":

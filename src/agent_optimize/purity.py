@@ -15,12 +15,13 @@ def validate_reusable_source(source):
         ast.Return, ast.For, ast.If, ast.IfExp, ast.Name, ast.Load, ast.Store,
         ast.Constant, ast.Subscript, ast.Attribute, ast.Call, ast.keyword,
         ast.Tuple, ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare,
-        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod,
+        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
         ast.BitAnd, ast.BitOr, ast.BitXor, ast.USub, ast.UAdd, ast.Invert,
         ast.Not, ast.And, ast.Or, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
     )
     numeric = {"bool_", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64"}
     allocations = {"empty", "zeros"}
+    operations = {"sqrt", "maximum"}
     parameters = {"offsets", "columns", "scalars"}
     allocated = set()
     locals_ = set()
@@ -41,13 +42,13 @@ def validate_reusable_source(source):
         if isinstance(item, ast.Name) and isinstance(item.ctx, ast.Load) and item.id not in locals_ | parameters | {"np", "range", "len", "abs"}:
             raise ValueError(f"candidate external dependency is unsupported: {item.id}")
         if isinstance(item, ast.Attribute):
-            if not isinstance(item.value, ast.Name) or item.value.id != "np" or item.attr not in numeric | allocations:
+            if not isinstance(item.value, ast.Name) or item.value.id != "np" or item.attr not in numeric | allocations | operations:
                 raise ValueError("candidate object access/methods are unsupported")
         if isinstance(item, ast.Call):
             target = item.func
             if isinstance(target, ast.Name) and target.id in {"range", "len", "abs"}:
                 continue
-            if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "np" and target.attr in numeric | allocations:
+            if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == "np" and target.attr in numeric | allocations | operations:
                 continue
             raise ValueError("candidate external calls and side effects are unsupported")
         if isinstance(item, (ast.Assign, ast.AugAssign)):

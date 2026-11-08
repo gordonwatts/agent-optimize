@@ -17,6 +17,17 @@ from agent_optimize.replay import replay_session
 from agent_optimize.store import create_session, read_json
 from test_dispatch import accepted, accepted_base, fast_kernel, invoke
 
+
+def test_code_fingerprint_ignores_equal_constant_object_sharing():
+    code = (lambda: None).__code__
+    shared = tuple(["long-constant-value"])
+    first = code.replace(co_consts=(shared, shared))
+    second = code.replace(co_consts=(tuple(["long-constant-value"]), tuple(["long-constant-value"])))
+    assert first.co_consts == second.co_consts
+    assert first.co_consts[0] is first.co_consts[1]
+    assert second.co_consts[0] is not second.co_consts[1]
+    assert code_fingerprint(first) == code_fingerprint(second)
+
 SOURCE = """from pathlib import Path
 import awkward as ak
 from agent_optimize import optimize

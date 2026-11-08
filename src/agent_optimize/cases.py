@@ -144,6 +144,10 @@ def build_schema_array(schema, lengths, collection_path, columns):
 
 
 def generate_cases(graph, contract, arguments, *, observed_max_length=0):
+    if getattr(graph, "reduction", None) == "argmin":
+        from .argmin import generate_cases as argmin_cases
+        yield from argmin_cases(graph, contract, arguments, observed_max_length)
+        return
     layout = collection_layout(arguments[graph.array_argument], graph.collection_path)
     dtypes = {name: layout.content.content(name).data.dtype for name in graph.fields}
     constants = _constants(graph.predicate, arguments)
