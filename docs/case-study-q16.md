@@ -20,6 +20,13 @@ ServiceX, Jinja2, Uproot, and Matplotlib. Awkward and NumPy are core dependencie
 Python 3.12 and 3.13 are supported by the library; this standalone script requests
 3.13. The interpreter running the optimization CLI must have the analysis
 dependencies installed, so recording and replay workers use the same environment.
+Keep the Linux environment separate from a native Windows environment in the
+same checkout:
+
+```bash
+export UV_PROJECT_ENVIRONMENT="$PWD/.venv-wsl"
+export UV_CACHE_DIR="$PWD/.uv-cache/wsl"
+```
 
 ```bash
 uv run --python 3.13 --extra q16 python examples/q16_ttbar.py \
