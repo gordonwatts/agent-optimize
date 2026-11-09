@@ -53,3 +53,21 @@ def test_zero_events_and_sliced_jagged_offsets_keep_their_meaning():
     offsets = buffers["jets"]["offsets"]
     px = buffers["jets"]["fields"]["px"]
     assert [px[offsets[i]:offsets[i + 1]].tolist() for i in range(2)] == [[2., 3., 4., 5.], [6., 7., 8.]]
+
+
+def test_q16_inputs_share_contract_across_batches():
+    import importlib.util
+    from pathlib import Path
+
+    example = Path(__file__).resolve().parents[1] / "examples" / "q16_ttbar.py"
+    spec = importlib.util.spec_from_file_location("q16_example", example)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    batches = list(module.synthetic_batches(7, batch_size=4))
+    names = ("jets", "lepton", "metx", "mety")
+    first = dict(zip(names, batches[0]))
+    second = dict(zip(names, batches[1]))
+    contract = make_event_input_contract(first)
+    buffers = adapt_event_inputs(contract, second)
+    assert len(buffers["jets"]["offsets"]) == 4
+    assert len(buffers["lepton"]["px"]) == len(buffers["metx"][""]) == 3
