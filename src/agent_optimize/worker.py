@@ -4,6 +4,7 @@ import argparse
 import hashlib
 from pathlib import Path
 import re
+import sys
 
 from .experiment import validate_frozen_source
 from .serialization import load_value, matches_recording
@@ -32,6 +33,7 @@ def replay_call(directory: Path, call_id: str) -> dict:
     matched = matches_recording(result, capture["reference_result"], call_directory)
     return {
         "schema_version": 1, "call_id": call_id,
+        "python_executable": sys.executable,
         "status": "passed" if matched else "failed",
         "reason": "frozen reference matches recorded output" if matched else "frozen reference output differs from recorded output",
     }

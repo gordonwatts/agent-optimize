@@ -22,6 +22,9 @@ class FilterSumGraph:
 
 
 def graph_from_dict(value):
+    if value.get("reduction") == "argmin":
+        from .argmin import ArgminGraph
+        return ArgminGraph(value["array_argument"], tuple(value["collection_path"]), value["score"], value["value"], tuple(value["fields"]), tuple(value["scalar_arguments"]))
     return FilterSumGraph(
         value["array_argument"], tuple(value["collection_path"]), value["sum_field"],
         value["predicate"], tuple(value["fields"]), tuple(value["scalar_arguments"]),
@@ -44,6 +47,9 @@ def predicate_is_array(node):
 
 def parse_filter_sum(source: str) -> FilterSumGraph:
     tree, name = validate_frozen_source(source)
+    if any(isinstance(node, ast.Attribute) and node.attr == "argmin" for node in ast.walk(tree)):
+        from .argmin import parse_argmin
+        return parse_argmin(tree)
     function = next(node for node in tree.body if isinstance(node, ast.FunctionDef))
     if sum(isinstance(node, ast.Return) for node in function.body) != 1 or not isinstance(function.body[-1], ast.Return):
         raise UnsupportedGraph("use one final return containing ak.sum(..., axis=1)")

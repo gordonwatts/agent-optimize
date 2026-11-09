@@ -7,7 +7,7 @@ name = "agent-optimize"
 version = "0.1.0"
 description = "Local experiments for optimized Awkward array computations"
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "awkward>=2.8,<3",
     "numpy>=2.2,<3",
@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=8,<10", "openai>=2,<3", "pydantic>=2,<3"]
+test = ["pytest>=8,<10", "openai>=2,<3", "pydantic>=2,<3", "typer>=0.12"]
 docs = ["zensical>=0.0.19,<1"]
 openai = ["openai>=2,<3", "pydantic>=2,<3"]
 
@@ -27,4 +27,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["live: opt-in real OpenAI API calls (require AGENT_OPTIMIZE_LIVE_TESTS=1)"]
+markers = [
+    "live: opt-in real OpenAI API calls (require AGENT_OPTIMIZE_LIVE_TESTS=1)",
+    "uv: opt-in uv dependency resolution (require AGENT_OPTIMIZE_UV_TESTS=1)",
+]

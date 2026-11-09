@@ -27,6 +27,7 @@ pip-wheel-metadata/
 
 # Virtual environments and local configuration
 .venv/
+.venv-wsl/
 venv/
 env/
 ENV/

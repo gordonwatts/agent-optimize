@@ -11,9 +11,49 @@ and ordinary dispatch are real. Mock mode needs no credential or network access.
 An optional OpenAI provider uses the official SDK and strict structured proposals
 when explicitly selected; the independent evaluator owns correctness and eligibility.
 
+## Run a script with inline dependencies
+
+Install the generic optimizer once and put uv on PATH. For this GitHub-distributed
+package, a tool installation can use:
+
+```sh
+uv tool install git+https://github.com/gordonwatts/agent-optimize.git
+agent-optimize run --max-calls 2 examples/q16_ttbar.py --n-files 1
+```
+
+No `--script` flag is needed on `agent-optimize`. Optimizer options go before the
+script path. Everything after the path is forwarded to the script, including
+its own `--json`, separators, empty arguments, and arguments containing spaces.
+
+The launcher reads the inline metadata without importing the analysis. It asks
+uv to select `requires-python` and resolve `dependencies`, then starts the
+controller in that environment. The controller executes the analysis once and
+launches replay and evaluation workers with the same Python interpreter.
+The report and replay results record `python_executable` for diagnosis.
+
+The script's declared `agent-optimize` dependency controls the library version
+and source. It is not replaced with the launching installation. If the script
+does not declare the package, the launcher adds its own installed source/version.
+Conflicting or unavailable requirements fail before the analysis starts.
+`--provider openai` additionally requests the generic `agent-optimize[openai]`
+extra in that environment, while retaining the declared package version/source.
+
+The first resolution may download packages or Python; uv caches resolved
+environments and packages. No packages are installed into the active interpreter.
+Normal execution stays `uv run --script analysis.py`; the script must declare
+`agent-optimize` if it imports it. Normal execution reuses saved replacements
+when available and does not begin an optimization search.
+
+This initial launcher consumes `dependencies` and `requires-python`. It rejects
+script lockfiles and `[tool.uv]` configuration rather than silently ignoring them.
+For those features, prepare a suitable environment with uv and use explicit
+command mode below. Relative dependency paths follow uv's requirements-file
+semantics. Use absolute file URLs for local sources when launching from a
+different working directory.
+
 ## Install and run
 
-Use Python 3.12 and a separate environment on each platform. From the checkout's
+Use Python 3.12 or 3.13 and a separate environment on each platform. From the checkout's
 root directory on native Windows:
 
 ```powershell
