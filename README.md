@@ -14,7 +14,8 @@ For a ServiceX analysis with a larger dependency set, see the
 [standalone example](examples/q16_ttbar.py). The script declares its own analysis
 dependencies in its inline metadata; there is no analysis-specific package extra.
 The library supports Python 3.12 and 3.13; q16 uses 3.13.
-Its decorated boundary fuses candidate mass scoring and first-minimum selection.
+Its decorated boundary covers neutrino reconstruction, ordered jet assignment,
+candidate construction, mass scoring and first-minimum selection.
 
 ## Script-owned environments
 
