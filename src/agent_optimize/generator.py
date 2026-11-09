@@ -9,7 +9,10 @@ def propose(problem, history):
 
     source = fused_candidate_source(graph_from_dict(problem["graph"]), contract_from_dict(problem["contract"]))
     if not history:
-        source = source.replace("output[event] = total", "output[event] = total + 1")
+        if "output[event] = total" in source:
+            source = source.replace("output[event] = total", "output[event] = total + 1")
+        else:
+            source = source.replace("    return output", "    for event in range(len(output)):\n        output[event] += 1\n    return output")
     return {
         "status": "proposal", "source": source,
         "description": "Fused filter and sum; correct the output offset after feedback." if history else "Initial fused loop with an intentionally incorrect output offset.",

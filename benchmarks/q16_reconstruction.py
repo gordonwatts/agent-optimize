@@ -33,7 +33,8 @@ def load(name, path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-file", type=Path, action="append", required=True)
+    parser.add_argument("--input-file", type=Path, action="append")
+    parser.add_argument("--synthetic-events", type=int, default=0, help="offline software/performance evidence only")
     parser.add_argument("--artifact-root", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=5)
     args = parser.parse_args()
@@ -45,15 +46,15 @@ def main():
         parser.error("run this benchmark outside a recording session")
     module = load("q16_benchmark", ROOT / "examples/q16_ttbar.py")
     # Match the identity of the same function when the example runs as a script.
-    module.select_ttbar_mass.__wrapped__.__module__ = "__main__"
+    module.reconstruct_events.__wrapped__.__module__ = "__main__"
     original = load("q16_supplied_reference", ROOT / "tests/fixtures/q16_reference.py")
-    batches = list(module.read_events(args.input_file))
+    batches = list(module.synthetic_batches(args.synthetic_events) if args.synthetic_events else module.read_events(args.input_file or []))
     if not batches:
         parser.error("no selected events")
-    decorated = module.select_ttbar_mass
+    decorated = module.reconstruct_events
 
     def run(kind):
-        module.select_ttbar_mass = decorated.__wrapped__ if kind == "revised-reference" else decorated
+        module.reconstruct_events = decorated.__wrapped__ if kind == "revised-reference" else decorated
         function = original.reconstruct if kind == "original" else module.reconstruct
         return [np.asarray(ak.to_numpy(function(*batch))) for batch in batches]
 
@@ -80,7 +81,8 @@ def main():
     medians = {kind: statistics.median(values) for kind, values in timings.items()}
     print(json.dumps({
         "events": sum(len(chunk) for chunk in expected), "batches": len(batches),
-        "exact_original_match": True, "saved_dispatch_observed": True,
+        "exact_original_match": True, "data": "synthetic" if args.synthetic_events else "transformed ROOT",
+        "mean_mass_GeV": float(np.mean(np.concatenate(expected))), "raw_reconstruction_seconds": timings, "saved_dispatch_observed": True,
         "repeats": args.repeats, "first_full_pass_seconds": first_seconds,
         "median_reconstruction_seconds": medians,
         "speedup_over_original": medians["original"] / medians["saved-dispatch"],

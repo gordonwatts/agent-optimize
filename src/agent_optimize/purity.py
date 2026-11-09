@@ -21,7 +21,7 @@ def validate_reusable_source(source):
     )
     numeric = {"bool_", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64"}
     allocations = {"empty", "zeros"}
-    operations = {"sqrt", "maximum"}
+    operations = {"sqrt", "maximum", "isnan"}
     parameters = {"offsets", "columns", "scalars"}
     allocated = set()
     locals_ = set()

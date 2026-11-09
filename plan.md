@@ -1,5 +1,28 @@
 # First-round implementation plan
 
+## Current project work (November 9, 2026)
+
+Keep backlog items in GitHub issues. Gordon prefers Typer for Python CLIs.
+Implementation and draft PRs for issues #2 and #3 are authorized. Keep PRs in
+draft until Gordon explicitly approves; do not mark ready, merge or deploy.
+
+- [Issue #3](https://github.com/gordonwatts/agent-optimize/issues/3): Typer
+  migration is in [draft PR #4](https://github.com/gordonwatts/agent-optimize/pull/4).
+  Windows Python 3.13: 383 tests passed, 4 skipped; two opt-in uv tests passed.
+- [Issue #2](https://github.com/gordonwatts/agent-optimize/issues/2): full q16
+  reconstruction is in [draft PR #5](https://github.com/gordonwatts/agent-optimize/pull/5),
+  based on merged PR #1 (`62d3c59`). Generic ordered Cartesian assignment lowering
+  now covers neutrino arithmetic, candidate construction, jet matching and scoring
+  in one compiled boundary. Recording, replay, correctness, persistence and saved
+  dispatch are integrated. Independent pair-assignment tests also exercise reuse.
+  Full Windows/Ubuntu regression runs and final performance evidence are in progress.
+
+A delivered real ROOT file is available locally under ignored `.agent-optimize/`.
+The fresh-process full comparison matched all 7,552 masses bit for bit. The mean
+remains 1537.14 GeV, outside the physics benchmark's 2477.6205 GeV ±2% target;
+the reason is unresolved. Software preservation does not establish physics validity.
+No extended physics investigation is part of this implementation.
+
 ## Goal and boundaries
 
 Deliver the workflow in `docs/ux-first-round.md`, following `docs/implementation-notes.md`: decorate a function, run `agent-optimize run -- python analysis.py ...` once, evaluate locally after the script exits, and automatically retain an eligible implementation for ordinary subsequent calls. Finish one real Awkward filter-and-sum example before adding other expressions. Initial generation is deterministic mock generation; no API key, SDK dependency, or live request is needed.

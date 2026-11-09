@@ -117,7 +117,7 @@ def build_schema_array(schema, lengths, collection_path, columns):
         match form["class"]:
             case "NumpyArray":
                 dtype = np.dtype(form["primitive"])
-                values = columns.get(path[-1]) if path[:-1] == collection_path else None
+                values = columns.get(".".join(path), columns.get(path[-1]) if path[:-1] == collection_path else None)
                 data = np.zeros(length, dtype=dtype) if values is None else np.asarray(values, dtype=dtype)
                 if len(data) != length:
                     raise UnsupportedGraph("generated numeric field length differs from its schema")
@@ -144,6 +144,10 @@ def build_schema_array(schema, lengths, collection_path, columns):
 
 
 def generate_cases(graph, contract, arguments, *, observed_max_length=0):
+    if getattr(graph, "reduction", None) == "assignment_argmin":
+        from .assignments import generate_cases as assignment_cases
+        yield from assignment_cases(graph, contract, arguments, observed_max_length)
+        return
     if getattr(graph, "reduction", None) == "argmin":
         from .argmin import generate_cases as argmin_cases
         yield from argmin_cases(graph, contract, arguments, observed_max_length)
