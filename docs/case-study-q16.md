@@ -125,6 +125,39 @@ quarantine, and reference fallback remain part of the existing workflow.
 
 ## Verification and scope
 
+### Full reconstruction (November 9, 2026)
+
+The full boundary was recorded and evaluated on one delivered real-data file in
+native Windows and Ubuntu under WSL2. Both recorded batches replayed successfully;
+the intentionally wrong proposal was rejected and a corrected proposal passed
+all mandatory cases and the measured acceptance gate. No OpenAI calls were made.
+A fresh process observed saved dispatch and matched all 7,552 masses against the
+supplied reconstruction bit for bit, on both systems.
+
+The full benchmark includes event packing, dispatch, neutrino reconstruction,
+jet assignment, candidate construction, scoring and result construction. It
+excludes ServiceX delivery, ROOT reading and plotting. Warm timings are medians
+of three passes in alternating order; first-process cost is reported separately.
+These are workstation observations, not a general speedup guarantee.
+
+| Environment | Original full reconstruction | Saved full replacement | Warm speedup | First full replacement pass |
+| --- | ---: | ---: | ---: | ---: |
+| Windows, Python 3.13.14 | 5.929 s | 0.156 s | 38.13× | 4.108 s |
+| Ubuntu WSL2, Python 3.13.15 | 5.476 s | 0.146 s | 37.57× | 3.631 s |
+
+Both environments used Awkward 2.14.0, NumPy 2.5.4 and Numba 0.68.1.
+[Raw timing and validation evidence](evidence/q16-full-reconstruction.json)
+records the three full passes, measured recording batches and environment versions.
+Each corrected proposal passed 108 correctness cases, including the two recordings.
+The native Windows suite passed 387 tests (3 skipped); Ubuntu passed 386
+(4 skipped). A source-file hash comparison verified the shared implementation.
+The standalone uv workflow also recorded, replayed, checked and saved a full
+replacement. CI covers Python 3.12/3.13 on Windows, Linux and macOS.
+
+The observed mean remains 1537.1414 GeV. Bitwise preservation of the supplied
+software does not resolve its disagreement with the 2477.6205 GeV physics
+benchmark beyond the 2% tolerance. No explanation has been established here.
+
 ### Historical scoring-only WSL2 result
 
 On November 8, 2026, an Ubuntu WSL2 run used Python 3.13.18, Awkward 2.14.0,

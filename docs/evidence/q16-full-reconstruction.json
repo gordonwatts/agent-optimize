@@ -1,0 +1,785 @@
+{
+  "date": "2026-11-09",
+  "numerical_library_revision": "9f9077d7f6da422ab92e39f07eb8037c5fbee4ff",
+  "transformed_input_sha256": "bd3ecc50194dc836bf0e8f9f7201fc000309644fc9ad0f8f3cc4dea5e3bc5a50",
+  "scope": "full reconstruction including packing and dispatch; excludes ServiceX, ROOT reading and plotting",
+  "provider": "mock; no OpenAI calls",
+  "environments": {
+    "windows": {
+      "versions": {
+        "python": "3.13.14",
+        "system": "Windows",
+        "awkward": "2.14.0",
+        "numpy": "2.5.4",
+        "numba": "0.68.1"
+      },
+      "tests": {
+        "passed": 387,
+        "skipped": 3
+      },
+      "benchmark": {
+        "events": 7552,
+        "batches": 235,
+        "exact_original_match": true,
+        "data": "transformed ROOT",
+        "mean_mass_GeV": 1537.141443061706,
+        "raw_reconstruction_seconds": {
+          "original": [
+            5.929254099959508,
+            5.893061800044961,
+            6.005310399923474
+          ],
+          "revised-reference": [
+            5.893641900038347,
+            5.93699039996136,
+            5.899326700018719
+          ],
+          "saved-dispatch": [
+            0.15408489992842078,
+            0.15550470002926886,
+            0.15729290002491325
+          ]
+        },
+        "saved_dispatch_observed": true,
+        "repeats": 3,
+        "first_full_pass_seconds": 4.107837199931964,
+        "median_reconstruction_seconds": {
+          "original": 5.929254099959508,
+          "revised-reference": 5.899326700018719,
+          "saved-dispatch": 0.15550470002926886
+        },
+        "speedup_over_original": 38.12909898442627,
+        "scope": "warm reconstruction only; excludes ROOT reading, ServiceX and plotting"
+      },
+      "optimization": {
+        "captured_calls": 2,
+        "replays": [
+          "passed",
+          "passed"
+        ],
+        "correctness_cases": 108,
+        "candidate_sha256": "f0c897b655a5f394872cf75b148d804a0d0b005cf1cfacf546b8e58e0f1de8bf",
+        "timing": {
+          "compilation_ns": 5132683800,
+          "dispatch_mode": "fast",
+          "eligibility": {
+            "eligible": true,
+            "minimum_batch_speedup": 141.87820329889846,
+            "reason": "at least 10% repeatable improvement on every retained recording",
+            "recordings": [
+              {
+                "batches": [
+                  {
+                    "candidate_median_ns": 219012.5,
+                    "candidate_q75_ns": 219825.0,
+                    "reference_median_ns": 31073100.0,
+                    "reference_q25_ns": 30894900.0
+                  },
+                  {
+                    "candidate_median_ns": 193262.5,
+                    "candidate_q75_ns": 214337.5,
+                    "reference_median_ns": 30532400.0,
+                    "reference_q25_ns": 30290800.0
+                  },
+                  {
+                    "candidate_median_ns": 210800.0,
+                    "candidate_q75_ns": 213712.5,
+                    "reference_median_ns": 29910700.0,
+                    "reference_q25_ns": 29891900.0
+                  }
+                ],
+                "case_id": "case-000"
+              },
+              {
+                "batches": [
+                  {
+                    "candidate_median_ns": 180712.5,
+                    "candidate_q75_ns": 182837.5,
+                    "reference_median_ns": 28631000.0,
+                    "reference_q25_ns": 28432000.0
+                  },
+                  {
+                    "candidate_median_ns": 157012.5,
+                    "candidate_q75_ns": 179662.5,
+                    "reference_median_ns": 28020900.0,
+                    "reference_q25_ns": 27948400.0
+                  },
+                  {
+                    "candidate_median_ns": 184062.5,
+                    "candidate_q75_ns": 190675.0,
+                    "reference_median_ns": 30193700.0,
+                    "reference_q25_ns": 29999700.0
+                  }
+                ],
+                "case_id": "case-001"
+              }
+            ]
+          },
+          "first_use_ns": 5147704800,
+          "mode": "measured",
+          "path": "cached ordinary fast dispatch including argument binding, generated adapter, kernel, and output",
+          "recordings": [
+            {
+              "batches": [
+                {
+                  "candidate_ns": [
+                    219825.0,
+                    193050.0,
+                    219012.5,
+                    195075.0,
+                    220162.5
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ]
+                  ],
+                  "reference_ns": [
+                    30894900.0,
+                    92553000.0,
+                    30272300.0,
+                    33653600.0,
+                    31073100.0
+                  ]
+                },
+                {
+                  "candidate_ns": [
+                    193262.5,
+                    225650.0,
+                    192000.0,
+                    214337.5,
+                    188187.5
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ]
+                  ],
+                  "reference_ns": [
+                    30804300.0,
+                    30741200.0,
+                    30532400.0,
+                    30290800.0,
+                    30200300.0
+                  ]
+                },
+                {
+                  "candidate_ns": [
+                    210800.0,
+                    187812.5,
+                    213712.5,
+                    185950.0,
+                    215150.0
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ]
+                  ],
+                  "reference_ns": [
+                    29724900.0,
+                    30133400.0,
+                    29910700.0,
+                    29891900.0,
+                    30026800.0
+                  ]
+                }
+              ],
+              "case_id": "case-000",
+              "elements": 131,
+              "events": 24
+            },
+            {
+              "batches": [
+                {
+                  "candidate_ns": [
+                    186050.0,
+                    149675.0,
+                    180712.5,
+                    151500.0,
+                    182837.5
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ]
+                  ],
+                  "reference_ns": [
+                    28631000.0,
+                    28116400.0,
+                    30102000.0,
+                    28432000.0,
+                    30502200.0
+                  ]
+                },
+                {
+                  "candidate_ns": [
+                    157012.5,
+                    181400.0,
+                    153750.0,
+                    179662.5,
+                    153100.0
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ]
+                  ],
+                  "reference_ns": [
+                    28020900.0,
+                    27948400.0,
+                    27944300.0,
+                    28233700.0,
+                    29298600.0
+                  ]
+                },
+                {
+                  "candidate_ns": [
+                    184062.5,
+                    150600.0,
+                    190675.0,
+                    162825.0,
+                    194162.5
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ]
+                  ],
+                  "reference_ns": [
+                    27494700.0,
+                    29999700.0,
+                    32201700.0,
+                    32764900.0,
+                    30193700.0
+                  ]
+                }
+              ],
+              "case_id": "case-001",
+              "elements": 142,
+              "events": 24
+            }
+          ],
+          "reference_first_use_ns": 33211500,
+          "reference_path": "direct frozen reference call",
+          "schema_version": 1,
+          "status": "passed"
+        }
+      }
+    },
+    "ubuntu-wsl2": {
+      "versions": {
+        "python": "3.13.15",
+        "system": "Linux",
+        "awkward": "2.14.0",
+        "numpy": "2.5.4",
+        "numba": "0.68.1"
+      },
+      "tests": {
+        "passed": 386,
+        "skipped": 4
+      },
+      "benchmark": {
+        "events": 7552,
+        "batches": 235,
+        "exact_original_match": true,
+        "data": "transformed ROOT",
+        "mean_mass_GeV": 1537.141443061706,
+        "raw_reconstruction_seconds": {
+          "original": [
+            5.4761307429289445,
+            5.460461248992942,
+            5.497007611091249
+          ],
+          "revised-reference": [
+            5.260820777039044,
+            5.381306260009296,
+            5.245572020066902
+          ],
+          "saved-dispatch": [
+            0.14646981901023537,
+            0.14527207997161895,
+            0.1457664300687611
+          ]
+        },
+        "saved_dispatch_observed": true,
+        "repeats": 3,
+        "first_full_pass_seconds": 3.6312560869846493,
+        "median_reconstruction_seconds": {
+          "original": 5.4761307429289445,
+          "revised-reference": 5.260820777039044,
+          "saved-dispatch": 0.1457664300687611
+        },
+        "speedup_over_original": 37.567845630477045,
+        "scope": "warm reconstruction only; excludes ROOT reading, ServiceX and plotting"
+      },
+      "optimization": {
+        "captured_calls": 2,
+        "replays": [
+          "passed",
+          "passed"
+        ],
+        "correctness_cases": 108,
+        "candidate_sha256": "822caf1b39e7196478a86e8fc698cd04a0ae9ff77149db0cfb5bba4e3ea0d5eb",
+        "timing": {
+          "compilation_ns": 3710319501,
+          "dispatch_mode": "fast",
+          "eligibility": {
+            "eligible": true,
+            "minimum_batch_speedup": 121.51152566515107,
+            "reason": "at least 10% repeatable improvement on every retained recording",
+            "recordings": [
+              {
+                "batches": [
+                  {
+                    "candidate_median_ns": 232174.5,
+                    "candidate_q75_ns": 236277.75,
+                    "reference_median_ns": 30409864.0,
+                    "reference_q25_ns": 28218969.0
+                  },
+                  {
+                    "candidate_median_ns": 201899.5,
+                    "candidate_q75_ns": 228592.375,
+                    "reference_median_ns": 28609955.0,
+                    "reference_q25_ns": 28079648.0
+                  },
+                  {
+                    "candidate_median_ns": 239400.5,
+                    "candidate_q75_ns": 239639.625,
+                    "reference_median_ns": 29089920.0,
+                    "reference_q25_ns": 28908319.0
+                  }
+                ],
+                "case_id": "case-000"
+              },
+              {
+                "batches": [
+                  {
+                    "candidate_median_ns": 181582.625,
+                    "candidate_q75_ns": 182436.125,
+                    "reference_median_ns": 26767309.0,
+                    "reference_q25_ns": 26666090.0
+                  },
+                  {
+                    "candidate_median_ns": 152637.875,
+                    "candidate_q75_ns": 188474.125,
+                    "reference_median_ns": 26754395.0,
+                    "reference_q25_ns": 26721262.0
+                  },
+                  {
+                    "candidate_median_ns": 178031.25,
+                    "candidate_q75_ns": 187404.25,
+                    "reference_median_ns": 26123165.0,
+                    "reference_q25_ns": 26000980.0
+                  }
+                ],
+                "case_id": "case-001"
+              }
+            ]
+          },
+          "first_use_ns": 3721266580,
+          "mode": "measured",
+          "path": "cached ordinary fast dispatch including argument binding, generated adapter, kernel, and output",
+          "recordings": [
+            {
+              "batches": [
+                {
+                  "candidate_ns": [
+                    232174.5,
+                    205275.625,
+                    298067.0,
+                    208956.25,
+                    236277.75
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ]
+                  ],
+                  "reference_ns": [
+                    28077488.0,
+                    30409864.0,
+                    30857387.0,
+                    30933628.0,
+                    28218969.0
+                  ]
+                },
+                {
+                  "candidate_ns": [
+                    200587.125,
+                    237344.875,
+                    201899.5,
+                    228592.375,
+                    200344.25
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ]
+                  ],
+                  "reference_ns": [
+                    28079648.0,
+                    30016956.0,
+                    28609955.0,
+                    28048956.0,
+                    31181510.0
+                  ]
+                },
+                {
+                  "candidate_ns": [
+                    239639.625,
+                    204878.5,
+                    239400.5,
+                    208004.375,
+                    259345.375
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ]
+                  ],
+                  "reference_ns": [
+                    28908319.0,
+                    28398247.0,
+                    29089920.0,
+                    30160946.0,
+                    29255586.0
+                  ]
+                }
+              ],
+              "case_id": "case-000",
+              "elements": 131,
+              "events": 24
+            },
+            {
+              "batches": [
+                {
+                  "candidate_ns": [
+                    181582.625,
+                    141084.75,
+                    182436.125,
+                    142806.125,
+                    189476.625
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ]
+                  ],
+                  "reference_ns": [
+                    27309232.0,
+                    26614741.0,
+                    26666090.0,
+                    27013798.0,
+                    26767309.0
+                  ]
+                },
+                {
+                  "candidate_ns": [
+                    152307.5,
+                    199465.375,
+                    152637.875,
+                    188474.125,
+                    148411.5
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ]
+                  ],
+                  "reference_ns": [
+                    26721262.0,
+                    30225980.0,
+                    27199322.0,
+                    26754395.0,
+                    26216275.0
+                  ]
+                },
+                {
+                  "candidate_ns": [
+                    187404.25,
+                    150662.875,
+                    178031.25,
+                    148914.875,
+                    230571.25
+                  ],
+                  "iterations": {
+                    "candidate": 8,
+                    "reference": 1
+                  },
+                  "order": [
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ],
+                    [
+                      "candidate",
+                      "reference"
+                    ],
+                    [
+                      "reference",
+                      "candidate"
+                    ]
+                  ],
+                  "reference_ns": [
+                    26509591.0,
+                    25942289.0,
+                    26123165.0,
+                    26000980.0,
+                    27583947.0
+                  ]
+                }
+              ],
+              "case_id": "case-001",
+              "elements": 142,
+              "events": 24
+            }
+          ],
+          "reference_first_use_ns": 38710728,
+          "reference_path": "direct frozen reference call",
+          "schema_version": 1,
+          "status": "passed"
+        }
+      }
+    }
+  }
+}

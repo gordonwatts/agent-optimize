@@ -90,13 +90,14 @@ def test_full_boundary_record_replay_accept_and_dispatch(tmp_path, monkeypatch):
     from agent_optimize.replay import replay_session
     from agent_optimize.evaluator import evaluate_session
     from agent_optimize.dispatch import clear_dispatch_cache, observe_dispatch
+    from agent_optimize.search import SearchLimits
     from test_dispatch import controlled
     example = load(Path(__file__).resolve().parents[1] / "examples/q16_ttbar.py")
     batch = next(example.synthetic_batches(5))
     array = ak.to_packed(ak.zip(dict(zip(("jets", "lepton", "metx", "mety"), batch)), depth_limit=1))
     session = create_session(tmp_path)
     expected = Recorder(session).invoke(example.reconstruct_events.__wrapped__, (array,), {})
-    report = evaluate_session(session, replay_session(session, 0), timing_provider=controlled, dispatch_mode="fast")
+    report = evaluate_session(session, replay_session(session, 0), timing_provider=controlled, dispatch_mode="fast", search_limits=SearchLimits(proposals=2))
     assert report["functions"][0]["status"] == "optimized", report["functions"]
     monkeypatch.setenv("AGENT_OPTIMIZE_ARTIFACT_ROOT", str(tmp_path))
     monkeypatch.setenv("AGENT_OPTIMIZE_MODE", "fast")
@@ -106,3 +107,10 @@ def test_full_boundary_record_replay_accept_and_dispatch(tmp_path, monkeypatch):
         actual = example.reconstruct_events(array)
     assert stats.get("used")
     assert compare_results(expected, actual)[0]
+    changed = ak.with_field(array, ak.values_astype(array.metx, np.float32), "metx")
+    clear_dispatch_cache()
+    stats.clear()
+    with observe_dispatch(stats):
+        actual = example.reconstruct_events(changed)
+    assert not stats.get("used")
+    assert compare_results(example.reconstruct_events.__wrapped__(changed), actual)[0]

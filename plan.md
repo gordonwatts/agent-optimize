@@ -15,7 +15,13 @@ draft until Gordon explicitly approves; do not mark ready, merge or deploy.
   now covers neutrino arithmetic, candidate construction, jet matching and scoring
   in one compiled boundary. Recording, replay, correctness, persistence and saved
   dispatch are integrated. Independent pair-assignment tests also exercise reuse.
-  Full Windows/Ubuntu regression runs and final performance evidence are in progress.
+  Windows: 387 passed, 3 skipped; Ubuntu WSL2: 386 passed, 4 skipped.
+  The standalone uv workflow passed. CI at `9f9077d` passed all matrix, script
+  and documentation checks. Warm real-data reconstruction measured 38.13× on
+  Windows and 37.57× on Ubuntu, including packing and dispatch. Both fresh-process
+  runs matched all 7,552 values bit for bit. See `docs/evidence/q16-full-reconstruction.json`.
+  Implementation and validation are complete; review remains with Gordon. No
+  technical blocker or outstanding question is known.
 
 A delivered real ROOT file is available locally under ignored `.agent-optimize/`.
 The fresh-process full comparison matched all 7,552 masses bit for bit. The mean
