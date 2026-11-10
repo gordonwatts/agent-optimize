@@ -8,6 +8,7 @@ from pathlib import Path
 import statistics
 import subprocess
 import sys
+import time
 from types import SimpleNamespace
 
 import click
@@ -37,6 +38,7 @@ app = typer.Typer(no_args_is_help=False, add_completion=False, pretty_exceptions
 @app.command(context_settings={"allow_interspersed_args": False})
 def run(
     json_output: bool = typer.Option(False, "--json", help="Write one versioned JSON result to stdout; send child output and progress to stderr."),
+    report: bool = typer.Option(False, "--report", help="Write a Markdown summary with timings and Python/Numba source in the current directory."),
     artifact_root: Path = typer.Option(Path(".agent-optimize")),
     dispatch_mode: DispatchMode = typer.Option(None),
     max_capture_bytes: int = typer.Option(DEFAULT_CAPTURE_BYTES),
@@ -59,7 +61,7 @@ def run(
     from .provider import MODELS
     if model not in MODELS:
         raise ConfigurationError(f"invalid model: {model!r} (choose from {', '.join(MODELS)})")
-    return SimpleNamespace(json=json_output, artifact_root=artifact_root,
+    return SimpleNamespace(json=json_output, report=report, artifact_root=artifact_root,
         dispatch_mode=dispatch_mode.value if dispatch_mode else None,
         max_capture_bytes=max_capture_bytes, max_calls=max_calls, max_proposals=max_proposals,
         function_seconds=function_seconds, worker_seconds=worker_seconds, search_seconds=search_seconds,
@@ -99,7 +101,8 @@ def _checkpoint(session, fallback):
 
 
 def _finish(report, status, exit_code, *, error=None):
-    result = {**report, "status": status, "exit_code": exit_code}
+    from .usage import update_usage
+    result = update_usage({**report, "status": status, "exit_code": exit_code})
     if error:
         result["error"] = error
     if status == "interrupted":
@@ -129,6 +132,25 @@ def _finish(report, status, exit_code, *, error=None):
 def _run(arguments):
     options = _parse(arguments)
     command = options.command
+    started = time.perf_counter()
+    analysis_seconds = None
+    optimization_started = None
+
+    def finish(value, status, exit_code, *, error=None):
+        from .reporting import write_report
+        now = time.perf_counter()
+        value = {**value, "run_timing": {"analysis_seconds": analysis_seconds,
+            "optimization_seconds": now - optimization_started if optimization_started is not None else None,
+            "controller_seconds": now - started}}
+        result = _finish(value, status, exit_code, error=error)
+        if options.report:
+            try:
+                result["markdown_report_path"] = str(write_report(result, command))
+            except (OSError, ValueError) as failure:
+                return _finish(result, "error", exit_code or 2, error={"phase": "markdown_report", "kind": type(failure).__name__, "message": "Could not write Markdown report; inspect the current directory permissions and existing report files."})
+            result = _finish(result, result["status"], result["exit_code"])
+        return result
+
     if not command or command[0] != "--" or len(command) == 1:
         raise ConfigurationError("run requires script.py [arguments] or a command after --, for example: run -- python analysis.py")
     if options.max_capture_bytes <= 0 or options.max_calls <= 0:
@@ -155,7 +177,7 @@ def _run(arguments):
     try:
         session = create_session(options.artifact_root, max_bytes=options.max_capture_bytes, max_calls=options.max_calls, provider=provider.identity)
     except (OSError, ValueError) as error:
-        return _finish(base, "error", 2, error={"phase": "session", "kind": type(error).__name__, "message": f"could not create recording session: {error}"[:500]})
+        return finish(base, "error", 2, error={"phase": "session", "kind": type(error).__name__, "message": f"could not create recording session: {error}"[:500]})
     base.update(session_id=session.name, session_directory=str(session), artifact_root=str(session.parent.parent), captured_bytes=0)
     print(f"agent-optimize: recording at {session}; limits: {options.max_capture_bytes} bytes, {options.max_calls} attempts/function", file=sys.stderr)
     print(f"agent-optimize: dispatch mode: {selected_mode}; correctness checks remain enabled during evaluation", file=sys.stderr)
@@ -164,15 +186,19 @@ def _run(arguments):
     environment = worker_environment()
     environment[SESSION_ENV] = str(session)
     environment["AGENT_OPTIMIZE_MODE"] = selected_mode
+    child_started = time.perf_counter()
     try:
         # JSON mode directly inherits stderr for BOTH child streams, keeping
         # arbitrary analysis output out of stdout without buffering it in memory.
         streams = {"stdout": sys.stderr, "stderr": sys.stderr} if options.json else {}
         child = subprocess.run(command[1:], env=environment, check=False, **streams)
     except OSError as error:
-        return _finish(base, "error", 2, error={"phase": "launch", "kind": type(error).__name__, "message": f"could not launch command: {error}"[:500]})
+        return finish(base, "error", 2, error={"phase": "launch", "kind": type(error).__name__, "message": f"could not launch command: {error}"[:500]})
     except KeyboardInterrupt:
-        return _finish(_checkpoint(session, base), "interrupted", 130)
+        analysis_seconds = time.perf_counter() - child_started
+        return finish(_checkpoint(session, base), "interrupted", 130)
+    analysis_seconds = time.perf_counter() - child_started
+    optimization_started = time.perf_counter()
     base["child_exit_code"] = child.returncode
     phase = "replay"
     try:
@@ -185,11 +211,11 @@ def _run(arguments):
 
             report = evaluate_session(session, report, search_limits=limits, dispatch_mode=selected_mode, **({"provider": provider, "api_key": api_key} if provider.kind == "openai" else {}))
     except KeyboardInterrupt:
-        return _finish({**base, **_checkpoint(session, base)}, "interrupted", 130)
+        return finish({**base, **_checkpoint(session, base)}, "interrupted", 130)
     except Exception as error:
         message = f"local {phase} failed: {type(error).__name__}" if provider.kind == "openai" else f"local {phase} failed: {type(error).__name__}: {error}"[:500]
-        return _finish({**base, **_checkpoint(session, base)}, "error", child.returncode or 2, error={"phase": phase, "kind": type(error).__name__, "message": message})
-    return _finish(report, "child_failed" if child.returncode else "completed", child.returncode)
+        return finish({**base, **_checkpoint(session, base)}, "error", child.returncode or 2, error={"phase": phase, "kind": type(error).__name__, "message": message})
+    return finish(report, "child_failed" if child.returncode else "completed", child.returncode)
 
 
 def _show_timings(timing):
@@ -211,6 +237,9 @@ def _show_timings(timing):
 
 
 def _show_result(result):
+    from .usage import usage_line
+    if result.get("usage_summary"):
+        print(usage_line(result["usage_summary"]), file=sys.stderr)
     if "error" in result:
         print(f"agent-optimize: {result['error']['message']}", file=sys.stderr)
     if result["status"] == "interrupted":
@@ -235,6 +264,8 @@ def _show_result(result):
                 print(f"    saved manifest: {evaluation['artifact_path']}", file=sys.stderr)
         if outcome.get("search"):
             print(f"  search stopped: {outcome['search']['stop']}; {outcome['search']['proposals']} proposals", file=sys.stderr)
+    if result.get("markdown_report_path"):
+        print(f"agent-optimize: Markdown report: {result['markdown_report_path']}", file=sys.stderr)
     if result.get("report_path"):
         print(f"agent-optimize: report: {result['report_path']}", file=sys.stderr)
     if result.get("report_error"):

@@ -15,6 +15,7 @@ from .generator import IDENTITY
 from .process import run_worker
 from .provider import contains_credential
 from .store import json_bytes, read_json, write_json
+from .usage import normalize_usage, estimate_cost, update_usage
 
 
 @dataclass(frozen=True)
@@ -94,6 +95,25 @@ def extra_cases(proposals, group, limit, *, deadline=None):
     return cases, diagnostics
 
 
+def _billing_evidence(response, status):
+    """Retain only bounded public accounting fields from an invalid proposal."""
+    import re
+    if type(response) is not dict:
+        return None
+    count = response.get("provider_request_count")
+    usage = normalize_usage(response.get("provider_usage"))
+    if not usage and not (type(count) is int and count >= 0):
+        return None
+    model = response.get("provider_response_model")
+    tier = response.get("provider_service_tier", "default")
+    result = {"status": status, "provider_usage": usage,
+              "provider_request_count": count if type(count) is int and count >= 0 else None,
+              "provider_service_tier": tier if tier in ("default", "flex", "priority", "fast", "ultrafast") else "unknown"}
+    if model is not None:
+        result["provider_response_model"] = model if isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9._-]{1,100}", model) else "unknown"
+    return result
+
+
 def request_proposal(request, path, limits, deadline, proposer=None, *, provider=None, api_key=None):
     """Default transport is a bounded local subprocess. Injection is for tests."""
     encoded = json_bytes(request)
@@ -129,12 +149,12 @@ def request_proposal(request, path, limits, deadline, proposer=None, *, provider
             detached = json.loads(encoded)
             response = proposer(detached["problem"], detached["history"])
         if time.monotonic() >= deadline:
-            return None, "deadline"
+            return _billing_evidence(response, "deadline"), "deadline"
         encoded_response = json_bytes(response)
     except Exception:
         return None, "provider_error"
     if len(encoded_response) > limits.response_bytes:
-        return None, "response_limit"
+        return _billing_evidence(response, "response_limit"), "response_limit"
     if contains_credential(response, api_key):
         return None, "provider_error"
     write_json(path / "response.json", {"schema_version": 1, "response": response})
@@ -144,7 +164,7 @@ def request_proposal(request, path, limits, deadline, proposer=None, *, provider
     if status in ("refused", "incomplete", "error", "response_limit", "provider_timeout", "malformed"):
         return response, "provider_error" if status == "error" else status
     if status != "proposal" or type(response.get("source")) is not str or not response["source"].strip() or type(response.get("description")) is not str:
-        return None, "malformed"
+        return _billing_evidence(response, "malformed"), "malformed"
     return response, None
 
 
@@ -180,10 +200,14 @@ def search_groups(groups, outcome, directory, report, limits, deadline, *, propo
         path = directory / "experiments" / outcome["function_id"] / f"proposal-{number:03d}-{group_id}"
         path.mkdir(parents=True)
         request = {"schema_version": 1, "provider": identity, "problem": provider_problem(group), "history": histories[group_id]}
+        attempt_id = path.relative_to(directory).as_posix()
+        outcome["pending_attempt"] = {"attempt_id": attempt_id, "generator": identity, "status": "requesting", "provider_request_count": 0 if identity.get("kind") == "mock" else None}
+        update_usage(report)
+        write_json(directory / "report.json", report)
         response, failure = request_proposal(request, path, limits, deadline, proposer, provider=provider, api_key=api_key)
         diagnostics = []
         raw_usage = response.get("provider_usage", {}) if response else {}
-        usage = {key: value for key, value in raw_usage.items() if key in {"input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "reasoning_output_tokens"} and type(value) is int and value >= 0} if type(raw_usage) is dict else {}
+        usage = normalize_usage(raw_usage)
         request_count = response.get("provider_request_count") if response else None
         if type(request_count) is not int or request_count < 0:
             request_count = None
@@ -192,9 +216,20 @@ def search_groups(groups, outcome, directory, report, limits, deadline, *, propo
             diagnostic = failure
         if not provider or provider.kind == "mock" or failure == "request_limit":
             request_count = 0
+        tier = response.get("provider_service_tier", "default") if response else "unknown"
+        response_model = response.get("provider_response_model", identity.get("model")) if response else identity.get("model")
+        cost_identity = identity
+        if identity.get("kind") == "openai" and response_model != identity.get("model"):
+            # A dated snapshot of the requested model follows the same model-page rates.
+            import re
+            if not isinstance(response_model, str) or not re.fullmatch(re.escape(identity["model"]) + r"-\d{4}-\d{2}-\d{2}", response_model):
+                cost_identity = {**identity, "model": "unknown"}
+        provider_metadata = {"attempt_id": attempt_id, "provider_cost": estimate_cost(usage, cost_identity, request_count, service_tier=tier), "provider_usage": usage, "provider_request_count": request_count, **({"provider_error": diagnostic} if failure else {})}
+        outcome["pending_attempt"].update(provider_metadata, status="evaluating")
+        update_usage(report)
+        write_json(directory / "report.json", report)
         if failure:
             response = None
-        provider_metadata = {"provider_usage": usage, "provider_request_count": request_count, **({"provider_error": diagnostic} if failure else {})}
         evaluation = {"schema_version": 1, "status": failure, "reason": f"proposal {failure}; Python remains in use", "generator": identity, **provider_metadata}
         if response is not None:
             try:
@@ -225,11 +260,13 @@ def search_groups(groups, outcome, directory, report, limits, deadline, *, propo
         # No next provider request occurs until BOTH local checkpoints succeed.
         write_json(path / "completed-proposal.json", evaluation)
         outcome["evaluations"].append(evaluation)
+        outcome.pop("pending_attempt", None)
         if evaluation["status"] == "optimized":
             suffix = "run with AGENT_OPTIMIZE_MODE=careful to reuse it" if dispatch_mode == "careful" else "run the script normally to reuse it"
             outcome.update(status="optimized", reason=f"eligible {dispatch_mode} implementation saved; {suffix}")
         histories[group_id].append({"attempt": number + 1, "feedback": safe_feedback, **({"source": response["source"]} if response else {})})
         outcome["search"] = {"proposals": number + 1, "stop": "running", "provider": identity}
+        update_usage(report)
         write_json(directory / "report.json", report)
         if evaluation["status"] in ("deadline", "request_limit"):
             stop = evaluation["status"]

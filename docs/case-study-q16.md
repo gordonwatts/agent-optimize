@@ -125,6 +125,18 @@ quarantine, and reference fallback remain part of the existing workflow.
 
 ## Verification and scope
 
+### Shareable run report
+
+`agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128`
+generates a Markdown summary with timings, usage/cost, correctness results and
+the frozen Python and saved Numba source. The analysis executes once.
+[This real-data sample](examples/q16-report.md) was generated from the cached
+7,552-event q16 file using the local mock provider, with two recorded calls and
+108 correctness cases for the accepted proposal. Its comparison table is for
+those recorded batches; the full-reconstruction measurements below are separate.
+It reports no model calls or API charges. Reference agreement does not establish
+physics validity; the mean discrepancy described below remains unresolved.
+
 ### Full reconstruction (November 9, 2026)
 
 The full boundary was recorded and evaluated on one delivered real-data file in

@@ -223,7 +223,7 @@ def test_checkpoint_failure_prevents_next_request(tmp_path, monkeypatch, checkpo
         return propose(problem, history)
     with pytest.raises(OSError, match="full disk"):
         run(directory, outcome, report, proposer=provider)
-    assert calls == [1]
+    assert calls == ([] if checkpoint == "report.json" else [1])
 
 
 def test_count_limit_is_per_function_across_contracts(tmp_path, monkeypatch):

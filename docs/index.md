@@ -4,6 +4,33 @@ Decorate an Awkward computation, run your analysis once through `agent-optimize`
 and let it check whether a compiled replacement is eligible for local reuse.
 Your readable Python function remains the reference and fallback.
 
+## Share a run
+
+Add `--report` before the script or command to write a Markdown account of the
+run in the current directory:
+
+```sh
+agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128
+```
+
+The file is named after the script/command plus a session identifier, and its
+path appears in the terminal and JSON output. It leads with elapsed times,
+API usage/cost and measured function comparisons, then shows each saved Python
+reference and Numba replacement. [Inspect the real q16 sample](examples/q16-report.md).
+Recording still runs the analysis once. Timings compare recorded function calls,
+not the whole script; compile/first-use costs are separate.
+
+The JSON `usage_summary` and terminal totals are available without `--report`.
+They include unsuccessful requests, distinguish missing usage from zero and
+retain known partial costs. Cached reads/writes are input subsets and reasoning
+is part of output. Cost estimates retain their rate source/version and use
+OpenAI Standard direct API rates with default cache retention; unknown usage or
+rates leave the total unavailable. Mock runs use no API tokens and cost zero
+in API charges. These estimates exclude invoice adjustments and are not billing
+reconciliation. [Official pricing](https://developers.openai.com/api/docs/pricing)
+and [cache accounting](https://developers.openai.com/api/docs/guides/prompt-caching)
+are the rate/semantics sources.
+
 The default generator is a deterministic **local mock**. It deliberately proposes
 an incorrect loop before responding to feedback with a corrected loop. The
 recording, Numba compilation, independent correctness checks, timing, storage,

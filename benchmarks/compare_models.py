@@ -35,7 +35,7 @@ from .process_tree import run as run_benchmark_process
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TOKEN_FIELDS = ("input_tokens", "output_tokens", "total_tokens", "cached_input_tokens", "reasoning_output_tokens")
+from agent_optimize.usage import TOKEN_FIELDS, summarize_usage
 
 
 def _write_json(path, value):
@@ -61,7 +61,7 @@ def summarize(report, *, expected_supported):
     attempts = sum(function.get("search", {}).get("proposals", 0) for function in functions)
     request_counts = [evaluation["provider_request_count"] for evaluation in evaluations if type(evaluation.get("provider_request_count")) is int]
     usage = [evaluation["provider_usage"] for evaluation in evaluations if isinstance(evaluation.get("provider_usage"), dict) and any(isinstance(evaluation["provider_usage"].get(field), int) for field in TOKEN_FIELDS)]
-    totals = {field: sum(item[field] for item in usage if isinstance(item.get(field), int)) if any(isinstance(item.get(field), int) for item in usage) else None for field in TOKEN_FIELDS}
+    accounting = summarize_usage(report)
     fallback_verified = None
     if not expected_supported:
         fallback_verified = bool(functions) and report.get("child_exit_code") == 0 and attempts == 0 and all(function.get("status") == "unsupported" for function in functions)
@@ -69,7 +69,7 @@ def summarize(report, *, expected_supported):
         "status": report.get("status"), "child_exit_code": report.get("child_exit_code"),
         "dispatch_mode": report.get("dispatch_mode"),
         "provider_attempts": attempts, "http_request_count": sum(request_counts) if len(request_counts) == attempts else None,
-        "request_count_reported_attempts": len(request_counts), "usage_reported_attempts": len(usage), "reported_token_totals": totals,
+        "request_count_reported_attempts": len(request_counts), "usage_reported_attempts": len(usage), "reported_token_totals": accounting["tokens"], "usage_summary": accounting,
         "unsupported_fallback_verified": fallback_verified,
         "functions": [{"name": function.get("identity", {}).get("qualified_name"), "status": function.get("status"), "reason": function.get("reason"), "captured_calls": function.get("captured_calls"), "skipped": function.get("skipped"), "search": function.get("search"), "evaluations": [{key: evaluation[key] for key in ("status", "reason", "correctness_status", "case_count", "timing", "provider_usage", "provider_request_count", "provider_error", "generator", "candidate_sha256", "artifact_path") if key in evaluation} for evaluation in function.get("evaluations", [])]} for function in functions],
         **({"error": report["error"]} if "error" in report else {}),

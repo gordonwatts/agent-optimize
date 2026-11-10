@@ -246,5 +246,7 @@ def evaluate_session(directory: Path, report: dict, *, worker_timeout=30, timing
             outcome["search"] = {"proposals": len(outcome["evaluations"]), "stop": "deadline", "provider": identity}
             outcome["evaluations"].append({"schema_version": 1, "status": "ineligible", "correctness_only": False, "reason": "experiment deadline exhausted"})
             outcome["reason"] = "experiment deadline exhausted; Python remains in use"
+    from .usage import update_usage
+    update_usage(report)
     write_json(directory / "report.json", report)
     return report

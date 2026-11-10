@@ -17,6 +17,53 @@ The library supports Python 3.12 and 3.13; q16 uses 3.13.
 Its decorated boundary covers neutrino reconstruction, ordered jet assignment,
 candidate construction, mass scoring and first-minimum selection.
 
+## Share what a run did
+
+```sh
+agent-optimize run --report analysis.py
+```
+
+`--report` writes a Markdown file in the current directory, named after the
+analysis/command plus a session identifier. The path is printed to stderr and
+included as `markdown_report_path` in JSON. Existing reports are never overwritten.
+The analysis runs once; report generation reads its retained evidence.
+
+The report starts with analysis/optimization elapsed times, usage/cost and a
+recorded-batch timing comparison. Each optimized function shows its frozen Python
+reference and saved Numba code, correctness count and compile/first-use cost.
+Unsupported or unsuccessful functions explain why Python remains in use.
+See the [real q16 sample report](docs/examples/q16-report.md). Generate an offline
+q16 example with:
+
+```sh
+agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128
+```
+
+Function timings include replacement dispatch and describe recorded batches;
+they are not whole-analysis speedups. Controller elapsed time excludes uv setup.
+Controlled test timings are labeled rather than presented as measurements.
+If an explicitly requested report cannot be written, the run reports an error
+(exit 2 unless the analysis already failed with its own nonzero status).
+
+Usage totals are available in human output and `usage_summary` in the durable
+JSON report, even without `--report`. They cover agent-optimize's model requests,
+including rejected/refused/incomplete attempts. Unknown usage remains unknown;
+partial totals show their coverage. Mock/no-request runs report zero API usage.
+Input, output and total tokens are separate from cached-read, cache-write and
+reasoning detail counts, which must not be counted again as additional tokens.
+
+Costs are USD **estimates**, not invoices. Each priced attempt retains a verified
+rate snapshot and source/date, so later pricing updates do not reprice history.
+The initial profile uses OpenAI direct API Standard rates, default 30-minute
+cache writes and the documented long-context adjustment. It excludes credits,
+taxes and regional premiums. Missing usage/cache details, unsupported models or
+service tiers leave the total estimate unavailable while preserving known costs.
+Requests explicitly select the Standard (`default`) service tier. Pricing is
+checked in rather than fetched during normal runs; rate updates require reviewing
+the [official pricing](https://developers.openai.com/api/docs/pricing),
+[cache accounting](https://developers.openai.com/api/docs/guides/prompt-caching)
+and model pages linked in each snapshot.
+
 ## Script-owned environments
 
 With uv on PATH, pass a Python script directly to resolve its inline dependencies

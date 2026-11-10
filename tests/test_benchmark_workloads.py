@@ -68,7 +68,7 @@ def test_usage_absence_and_unsupported_fallback_are_reported_truthfully():
     assert result["unsupported_fallback_verified"] is True
     assert result["provider_attempts"] == 0
     assert result["http_request_count"] == 0
-    assert result["reported_token_totals"]["total_tokens"] is None
+    assert result["reported_token_totals"]["total_tokens"] == 0
     report["functions"] = [{"status": "reference", "search": {"proposals": 2}, "evaluations": [{"status": "provider_error", "provider_usage": {}, "provider_request_count": None}, {"status": "rejected", "provider_request_count": 1, "provider_usage": {"input_tokens": 20, "output_tokens": 10, "total_tokens": 30}}]}]
     result = summarize(report, expected_supported=True)
     assert result["provider_attempts"] == 2

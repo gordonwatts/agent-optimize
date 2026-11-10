@@ -29,6 +29,7 @@ def _manifest(evaluation, metadata, function_id, timing, dispatch_mode="careful"
         "timing": {"mode": timing.get("mode"), "dispatch_mode": dispatch_mode, "eligibility": {key: eligibility[key] for key in ("eligible", "reason", "minimum_batch_speedup") if key in eligibility}},
         "evaluation_evidence": {"schema_version": 1, "correctness": correctness, "timing": timing},
         "generator": evaluation.get("generator", {"kind": "handwritten", "identity": "fused-filter-sum-v1"}),
+        **{key: evaluation[key] for key in ("attempt_id", "provider_cost") if key in evaluation},
         "provider_usage": evaluation.get("provider_usage", {}),
         "provider_request_count": evaluation.get("provider_request_count", 0),
     }
