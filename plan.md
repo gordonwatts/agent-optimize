@@ -27,10 +27,15 @@ form one demonstration/reporting change. New PRs must contain `fix #6` / `fix #7
 and remain draft until Gordon explicitly approves them; approval to implement
 or open a PR does not authorize marking it ready or merging.
 
-Progress: accounting, durable request checkpoints, Typer report export and run
-phase timings are implemented. Offline usage/provider/search/CLI tests are
-passing; report integration, q16 demonstration and full regression checks are
-in progress. No paid API calls are needed. The manager confirmed standing hourly
+Progress: both issues are implemented in [draft PR #8](https://github.com/gordonwatts/agent-optimize/pull/8),
+with `fix #6` and `fix #7`. The real-data q16 sample is
+`docs/examples/q16-report.md`; it shows 2 recordings, 108 correctness cases,
+measured batch timings and both verified source implementations. The simplest
+command was verified in a clean script-owned uv environment:
+`agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128`.
+The Windows full run passed 410 tests (3 skipped); newer focused accounting,
+provider and search checks passed 89 tests (1 skipped). A final full run and
+fresh CI are in progress. No paid API calls are needed. The manager confirmed standing hourly
 portfolio monitoring ACTIVE and owns its lifecycle; no separate schedule was
 created by this project.
 
