@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -39,6 +40,25 @@ def test_child_failure_status_is_preserved(tmp_path):
         check=False,
     )
     assert result.returncode == 7
+
+
+def test_json_configuration_errors_remain_machine_readable(capsys):
+    assert main(["run", "--json", "--max-calls", "not-an-integer"]) == 2
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+    assert result["status"] == "error"
+    assert result["exit_code"] == 2
+    assert result["error"]["phase"] == "configuration"
+
+
+def test_help_and_unknown_option_exit_status(capsys):
+    with pytest.raises(SystemExit) as help_exit:
+        main(["run", "--help"])
+    assert help_exit.value.code == 0
+    assert "--max-calls" in re.sub(r"\[[0-9;]*m", "", capsys.readouterr().out)
+    with pytest.raises(SystemExit) as invalid_exit:
+        main(["run", "--unknown-option"])
+    assert invalid_exit.value.code == 2
 
 
 @pytest.mark.parametrize("arguments", [[], ["run"], ["run", "--"], ["run", "python", "script.py"]])

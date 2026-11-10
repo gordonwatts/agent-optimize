@@ -1,13 +1,18 @@
 """Run an analysis once and report bounded local optimization outcomes."""
 
-import argparse
 from collections.abc import Sequence
 from dataclasses import asdict
+from enum import Enum
 import os
 from pathlib import Path
 import statistics
 import subprocess
 import sys
+from types import SimpleNamespace
+
+import click
+import typer
+from typer.main import get_command
 
 from .store import create_session, DEFAULT_CALL_LIMIT, DEFAULT_CAPTURE_BYTES, SESSION_ENV, json_bytes, read_json, write_json
 
@@ -16,35 +21,74 @@ class ConfigurationError(ValueError):
     pass
 
 
-class _Parser(argparse.ArgumentParser):
-    def error(self, message):
-        raise ConfigurationError(message)
+class DispatchMode(str, Enum):
+    fast = "fast"
+    careful = "careful"
 
 
-def _parser():
-    parser = _Parser(prog="agent-optimize", allow_abbrev=False)
-    subparsers = parser.add_subparsers(dest="action", required=True)
-    run = subparsers.add_parser("run", allow_abbrev=False, help="run an analysis once, then check and save eligible implementations")
-    run.add_argument("--json", action="store_true", help="write one versioned JSON result to stdout; send child output and progress to stderr")
-    run.add_argument("--artifact-root", type=Path, default=Path(".agent-optimize"))
-    run.add_argument("--dispatch-mode", choices=("fast", "careful"), default=None, help="measure/save fast ordinary dispatch (default) or opt into repeated careful compatibility checks")
-    run.add_argument("--max-capture-bytes", type=int, default=DEFAULT_CAPTURE_BYTES)
-    run.add_argument("--max-calls", type=int, default=DEFAULT_CALL_LIMIT)
-    run.add_argument("--max-proposals", type=int, default=3)
-    run.add_argument("--function-seconds", type=float, default=120)
-    run.add_argument("--worker-seconds", type=float, default=30)
-    run.add_argument("--search-seconds", type=float, default=300)
-    run.add_argument("--max-request-bytes", type=int, default=128 * 1024)
-    run.add_argument("--max-response-bytes", type=int, default=64 * 1024)
-    run.add_argument("--max-extra-cases", type=int, default=8)
-    run.add_argument("--provider", choices=("mock", "openai"), default="mock")
+class Provider(str, Enum):
+    mock = "mock"
+    openai = "openai"
+
+
+app = typer.Typer(no_args_is_help=False, add_completion=False, pretty_exceptions_enable=False)
+
+
+@app.command(context_settings={"allow_interspersed_args": False})
+def run(
+    json_output: bool = typer.Option(False, "--json", help="Write one versioned JSON result to stdout; send child output and progress to stderr."),
+    artifact_root: Path = typer.Option(Path(".agent-optimize")),
+    dispatch_mode: DispatchMode = typer.Option(None),
+    max_capture_bytes: int = typer.Option(DEFAULT_CAPTURE_BYTES),
+    max_calls: int = typer.Option(DEFAULT_CALL_LIMIT),
+    max_proposals: int = typer.Option(3),
+    function_seconds: float = typer.Option(120),
+    worker_seconds: float = typer.Option(30),
+    search_seconds: float = typer.Option(300),
+    max_request_bytes: int = typer.Option(128 * 1024),
+    max_response_bytes: int = typer.Option(64 * 1024),
+    max_extra_cases: int = typer.Option(8),
+    provider: Provider = typer.Option(Provider.mock),
+    model: str = typer.Option("gpt-6.1-sol"),
+    api_key: str = typer.Option(None, help="OpenAI credential; prefer AGENT_OPTIMIZE_OAI_API_KEY or .env to avoid shell history."),
+    provider_seconds: float = typer.Option(30),
+    max_output_tokens: int = typer.Option(4096),
+    command: list[str] = typer.Argument(None, help="script.py [arguments], or -- <command> [arguments]; optimizer options precede the script."),
+):
+    """Run an analysis once, then check and save eligible implementations."""
     from .provider import MODELS
-    run.add_argument("--model", choices=MODELS, default="gpt-6.1-sol")
-    run.add_argument("--api-key", help="OpenAI credential; prefer AGENT_OPTIMIZE_OAI_API_KEY or .env to avoid shell history")
-    run.add_argument("--provider-seconds", type=float, default=30)
-    run.add_argument("--max-output-tokens", type=int, default=4096)
-    run.add_argument("command", nargs=argparse.REMAINDER, help="script.py [script arguments], or -- <command> [arguments]; optimizer options go before the script")
-    return parser
+    if model not in MODELS:
+        raise ConfigurationError(f"invalid model: {model!r} (choose from {', '.join(MODELS)})")
+    return SimpleNamespace(json=json_output, artifact_root=artifact_root,
+        dispatch_mode=dispatch_mode.value if dispatch_mode else None,
+        max_capture_bytes=max_capture_bytes, max_calls=max_calls, max_proposals=max_proposals,
+        function_seconds=function_seconds, worker_seconds=worker_seconds, search_seconds=search_seconds,
+        max_request_bytes=max_request_bytes, max_response_bytes=max_response_bytes,
+        max_extra_cases=max_extra_cases, provider=provider.value, model=model, api_key=api_key,
+        provider_seconds=provider_seconds, max_output_tokens=max_output_tokens, command=command or [])
+
+
+# Force a group even though there is currently one subcommand.
+@app.callback()
+def _root():
+    """Record and optimize an analysis."""
+
+
+def _parse(arguments):
+    cli = get_command(app)
+    try:
+        with cli.make_context("agent-optimize", arguments.copy()) as ctx:
+            options = cli.invoke(ctx)
+    except click.exceptions.Exit as exit_request:
+        raise SystemExit(exit_request.exit_code) from None
+    except click.ClickException as error:
+        raise ConfigurationError(error.format_message()) from error
+    # Click consumes the separator. Restore it only when it introduced the
+    # command, leaving separators in the child's arguments untouched.
+    command_start = len(arguments) - len(options.command)
+    if command_start and arguments[command_start - 1] == "--":
+        options.command.insert(0, "--")
+    return options
 
 
 def _checkpoint(session, fallback):
@@ -83,13 +127,12 @@ def _finish(report, status, exit_code, *, error=None):
 
 
 def _run(arguments):
-    parser = _parser()
-    options = parser.parse_args(arguments)
+    options = _parse(arguments)
     command = options.command
     if not command or command[0] != "--" or len(command) == 1:
-        parser.error("run requires script.py [arguments] or a command after --, for example: run -- python analysis.py")
+        raise ConfigurationError("run requires script.py [arguments] or a command after --, for example: run -- python analysis.py")
     if options.max_capture_bytes <= 0 or options.max_calls <= 0:
-        parser.error("--max-capture-bytes and --max-calls must be positive")
+        raise ConfigurationError("--max-capture-bytes and --max-calls must be positive")
     from .search import SearchLimits
     from .provider import ProviderSettings, resolve_api_key
 
@@ -104,7 +147,7 @@ def _run(arguments):
             if any(importlib.util.find_spec(name) is None for name in ("openai", "pydantic")):
                 raise ValueError("OpenAI provider requires the optional package: pip install 'agent-optimize[openai]'")
     except ValueError as error:
-        parser.error(str(error))
+        raise ConfigurationError(str(error))
     base = {"schema_version": 1, "child_exit_code": None, "functions": [], "limits": {"max_capture_bytes": options.max_capture_bytes, "max_calls_per_function": options.max_calls}, "search_limits": asdict(limits)}
     base["provider"] = provider.identity
     base["dispatch_mode"] = selected_mode
@@ -205,7 +248,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     prefix = arguments[:arguments.index("--")] if "--" in arguments else arguments
     json_mode = "--json" in prefix
     try:
-        options = _parser().parse_args(arguments)
+        options = _parse(arguments)
         command = options.command
         if command and command[0] != "--" and Path(command[0]).suffix.lower() == ".py":
             prefix = arguments[:len(arguments) - len(command)]
