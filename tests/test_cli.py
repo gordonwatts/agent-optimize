@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -54,7 +55,7 @@ def test_help_and_unknown_option_exit_status(capsys):
     with pytest.raises(SystemExit) as help_exit:
         main(["run", "--help"])
     assert help_exit.value.code == 0
-    assert "--max-calls" in capsys.readouterr().out
+    assert "--max-calls" in re.sub(r"\[[0-9;]*m", "", capsys.readouterr().out)
     with pytest.raises(SystemExit) as invalid_exit:
         main(["run", "--unknown-option"])
     assert invalid_exit.value.code == 2
