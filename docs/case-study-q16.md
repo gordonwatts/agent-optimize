@@ -9,9 +9,10 @@ distinct four-jet assignment. The winning assignment minimizes
 top-pair mass per selected event and `plot_1.png`.
 
 The analysis has two different costs: constructing the candidate assignments,
-and scoring those candidates. This example optimizes the second stage.
-ServiceX delivery, ROOT reading, neutrino reconstruction, candidate construction,
-and plotting stay outside the decorated function.
+and scoring those candidates. The current example optimizes both stages, together with neutrino reconstruction.
+ServiceX delivery, ROOT reading, event packing and plotting remain outside the
+decorated function. The earlier scoring-only result is retained below as historical
+evidence of the smaller boundary.
 
 ## Ordinary execution in Ubuntu on WSL2
 
@@ -95,33 +96,69 @@ are separate from a project `.venv`; no Windows environment needs to be replaced
 
 ## The numerical boundary
 
-`reconstruct` builds hadronic and leptonic top four-vectors for each candidate,
-then packs their eight numeric components into one jagged record array.
-`select_ttbar_mass`, marked with `@optimize`, computes the two top masses, their
-score, and the combined mass for the first minimum-score candidate.
+`reconstruct` packs the jets, lepton and missing momentum into one event record.
+The decorated `reconstruct_events` contains neutrino reconstruction, ordered jet
+assignment, top-vector arithmetic, scoring and first-minimum winner selection.
+Packing is included in the full-reconstruction benchmark.
 
-The reference uses `ak.local_index(score, axis=1) == ak.argmin(score, axis=1,
-keepdims=True)` to select exactly one candidate, then sums that single value.
-For empty candidate lists the boundary returns zero. The analysis's four-jet
-selection ensures its candidate lists are nonempty. This gives the recorder a
-flat numeric output without optional values.
+The reusable library recognizes a bounded `ak.argcartesian` idiom: two to four
+named index slots from one jagged numeric-record collection, a Boolean index
+filter, numeric gathers, event-level fields broadcast with `[:, None]`, arithmetic,
+`abs`, `sqrt`, `maximum`, `where`, and a first-argmin reduction. It is independent
+of q16 field names and constants. The current contract requires float64 numeric
+fields/output, no scalar arguments, at most 32 referenced fields and 128 numeric
+bindings. Unsupported forms and expressions retain the Python reference.
 
-The compiled loop scans candidates in their original order and computes the
-combined mass only for the winner. Equal scores keep the first candidate.
-Floating-point operations retain their expression order; fast-math is disabled.
-Inputs are read-only and the result is separately allocated.
+The compiler streams assignments in the same order as the reference, applies
+index constraints as soon as their slots are available, and hoists event-only
+arithmetic outside the assignment loops. It allocates the output without
+materializing candidate arrays. Equal scores retain the first candidate; empty
+candidate lists yield zero. The real analysis selects at least four jets.
 
-This support is deliberately bounded: one CPU-backed, packed, variable-length
-record collection, float64 fields and output, no scalar arguments, up to 16
-numeric fields, and a restricted arithmetic expression using addition,
-subtraction, multiplication, squares, absolute value, square root, and maximum.
-Arbitrary helper functions, ServiceX query lambdas, I/O, and arbitrary dependency
-imports are still outside frozen references. Install-time analysis dependencies
-do not become allowed operations inside a decorated function.
+Fast-math remains disabled. Explicit NaN operand selection preserves the installed
+NumPy arithmetic policy when LLVM would otherwise commute operands or replace
+subtraction with negation. Mandatory cases check NaN signs and payloads, infinities,
+signed zeros, ties, boundaries, changing event/jet counts, and empty inputs. Frozen
+reference verification covers the added stock Awkward operations and their
+supported dependency state. Code, dependency, schema and environment compatibility,
+quarantine, and reference fallback remain part of the existing workflow.
 
 ## Verification and scope
 
-### Measured WSL2 result
+### Full reconstruction (November 9, 2026)
+
+The full boundary was recorded and evaluated on one delivered real-data file in
+native Windows and Ubuntu under WSL2. Both recorded batches replayed successfully;
+the intentionally wrong proposal was rejected and a corrected proposal passed
+all mandatory cases and the measured acceptance gate. No OpenAI calls were made.
+A fresh process observed saved dispatch and matched all 7,552 masses against the
+supplied reconstruction bit for bit, on both systems.
+
+The full benchmark includes event packing, dispatch, neutrino reconstruction,
+jet assignment, candidate construction, scoring and result construction. It
+excludes ServiceX delivery, ROOT reading and plotting. Warm timings are medians
+of three passes in alternating order; first-process cost is reported separately.
+These are workstation observations, not a general speedup guarantee.
+
+| Environment | Original full reconstruction | Saved full replacement | Warm speedup | First full replacement pass |
+| --- | ---: | ---: | ---: | ---: |
+| Windows, Python 3.13.14 | 5.929 s | 0.156 s | 38.13× | 4.108 s |
+| Ubuntu WSL2, Python 3.13.15 | 5.476 s | 0.146 s | 37.57× | 3.631 s |
+
+Both environments used Awkward 2.14.0, NumPy 2.5.4 and Numba 0.68.1.
+[Raw timing and validation evidence](evidence/q16-full-reconstruction.json)
+records the three full passes, measured recording batches and environment versions.
+Each corrected proposal passed 108 correctness cases, including the two recordings.
+The native Windows suite passed 387 tests (3 skipped); Ubuntu passed 386
+(4 skipped). A source-file hash comparison verified the shared implementation.
+The standalone uv workflow also recorded, replayed, checked and saved a full
+replacement. CI covers Python 3.12/3.13 on Windows, Linux and macOS.
+
+The observed mean remains 1537.1414 GeV. Bitwise preservation of the supplied
+software does not resolve its disagreement with the 2477.6205 GeV physics
+benchmark beyond the 2% tolerance. No explanation has been established here.
+
+### Historical scoring-only WSL2 result
 
 On November 8, 2026, an Ubuntu WSL2 run used Python 3.13.18, Awkward 2.14.0,
 NumPy 2.5.4, and Numba 0.68.1. ServiceX delivered one file. The local provider
@@ -161,7 +198,7 @@ differs from the supplied reference. Keep the artifact root used during recordin
 ### Automated coverage
 
 Tests compare the rewritten reconstruction with the supplied numerical reference
-bit for bit on deterministic synthetic events. Compiled scoring is checked on
+bit for bit on deterministic synthetic events. Compiled scoring and full assignment reconstruction are checked on
 recorded calls and independent cases covering zero events, empty lists, varying
 and larger candidate counts, ties, boundaries, NaN payloads, infinities, and signed
 zeros. Optional analysis tests also read a generated transformed ROOT tree and

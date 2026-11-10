@@ -20,8 +20,8 @@ import types
 from .store import json_bytes
 
 MODULE_SYMBOLS = {
-    "awkward": {"sum", "to_numpy", "values_astype", "argmin", "local_index"},
-    "numpy": {"sum", "asarray", "abs", "sqrt", "maximum", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool_"},
+    "awkward": {"sum", "to_numpy", "values_astype", "argmin", "local_index", "argcartesian", "where"},
+    "numpy": {"sum", "asarray", "abs", "sqrt", "maximum", "newaxis", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool_"},
     "math": {"fabs", "isfinite", "isnan", "isinf", "pi", "e", "tau"},
 }
 BUILTINS = {"abs"}
@@ -123,6 +123,27 @@ def _binding_fingerprint(value):
     if getattr(value, "__module__", "") == "awkward.operations.ak_to_numpy":
         raise UnsupportedReference("ak.to_numpy conversion dependencies are outside the verified subset; convert the result outside the decorated function")
     seen = {}
+    approved_lists = set()
+
+    def approve_default_lists(function):
+        defaults = (*(function.__defaults__ or ()), *(function.__kwdefaults__ or {}).values())
+        if not any(type(v) is list for v in defaults):
+            return
+        _, tree, _ = _source_snapshot(function.__code__)
+        definition = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == function.__code__.co_name and min([n.lineno, *(d.lineno for d in n.decorator_list)]) == function.__code__.co_firstlineno), None)
+        try:
+            expected = [ast.literal_eval(n) for n in definition.args.defaults]
+            actual = function.__defaults__ or ()
+            pairs = list(zip(actual, expected, strict=True))
+            kw = {a.arg: n for a, n in zip(definition.args.kwonlyargs, definition.args.kw_defaults) if n is not None}
+            pairs.extend((v, ast.literal_eval(kw[k])) for k, v in (function.__kwdefaults__ or {}).items() if type(v) is list)
+        except (AttributeError, ValueError, TypeError, KeyError) as error:
+            raise UnsupportedReference("mutable/import defaults differ from installed source") from error
+        for value, expected_value in pairs:
+            if type(value) is list:
+                if type(expected_value) is not list or value != expected_value or not all(_immutable(v) for v in value):
+                    raise UnsupportedReference("mutable/import defaults differ from installed source")
+                approved_lists.add(id(value))
 
     def state(item, depth=0):
         if depth > 24 or len(seen) > 256:
@@ -135,11 +156,69 @@ def _binding_fingerprint(value):
             return {"builtin_constant": repr(item)}
         if type(item) is tuple:
             return {"tuple": [state(value, depth + 1) for value in item]}
+        if type(item) is list and id(item) in approved_lists and len(item) <= 64 and all(_immutable(v) for v in item):
+            return {"installed_list_state": [state(value, depth + 1) for value in item]}
         if isinstance(item, types.ModuleType):
             return {"module": item.__name__, "version": getattr(item, "__version__", "stdlib")}
+        if type(item) is dict:
+            import copy
+            import copyreg
+            if item is copyreg.dispatch_table:
+                entries = []
+                for key, value in sorted(item.items(), key=lambda pair: repr(pair[0])):
+                    # Plain CPU layouts and literal operation metadata cannot
+                    # contain instances of extension-registered Python types.
+                    if getattr(key, "__module__", "").split(".")[0] not in sys.stdlib_module_names:
+                        continue
+                    if not isinstance(key, type) or not isinstance(value, types.FunctionType):
+                        raise UnsupportedReference("unsupported copy registry entry")
+                    _trusted_function(value)
+                    if value.__closure__ or not _immutable(value.__defaults__) or value.__kwdefaults__:
+                        raise UnsupportedReference("unsupported copy callback state")
+                    entries.append({"type": f"{key.__module__}.{key.__qualname__}", "callback": f"{value.__module__}.{value.__qualname__}", "code": code_fingerprint(value.__code__)})
+                return {"copyreg_registry": entries}
+            if item is copy._copy_dispatch or item is copy._deepcopy_dispatch:
+                return {"stdlib_copy_registry": [[state(key, depth + 1), state(value, depth + 1)] for key, value in sorted(item.items(), key=lambda pair: repr(pair[0]))]}
+            from awkward import _broadcasting
+            if item is _broadcasting.BROADCAST_RULE_TO_FACTORY_IMPL:
+                if set(item) != set(_broadcasting.BroadcastParameterRule):
+                    raise UnsupportedReference("modified broadcasting registry is unsupported")
+                return {"broadcasting_registry": {key.value: state(value, depth + 1) for key, value in sorted(item.items(), key=lambda pair: pair[0].value)}}
+            from awkward._backends import dispatch as backend_dispatch
+            if item is backend_dispatch._name_to_backend_cls:
+                expected = {"cpu": ("numpy", "NumpyBackend"), "typetracer": ("typetracer", "TypeTracerBackend"), "cuda": ("cupy", "CupyBackend"), "jax": ("jax", "JaxBackend")}
+                if set(item) != set(expected) or any(value is not getattr(importlib.import_module(f"awkward._backends.{expected[key][0]}"), expected[key][1]) for key, value in item.items()):
+                    raise UnsupportedReference("modified Awkward backend registry is unsupported")
+                return {"awkward_backend_registry": {key: state(value, depth + 1) for key, value in sorted(item.items())}}
         module = getattr(item, "__module__", type(item).__module__)
         name = getattr(item, "__qualname__", getattr(item, "__name__", type(item).__qualname__))
         result = {"module": module, "name": name}
+        if module in {"awkward._nplikes.shape", "awkward._backends.numpy", "awkward._nplikes.numpy"}:
+            from awkward._nplikes.shape import UnknownLength, unknown_length
+            from awkward._backends.numpy import NumpyBackend
+            from awkward._nplikes.numpy import Numpy
+            expected = {UnknownLength: (unknown_length, {}), NumpyBackend: (NumpyBackend.instance(), {"_numpy": Numpy.instance()}), Numpy: (Numpy.instance(), {"_module": importlib.import_module("numpy")})}
+            if type(item) in expected:
+                singleton, attrs = expected[type(item)]
+                if item is not singleton or vars(item) != attrs:
+                    raise UnsupportedReference("modified Awkward numeric singleton is unsupported")
+                methods = {}
+                for key, method in vars(type(item)).items():
+                    if isinstance(method, types.FunctionType):
+                        _trusted_function(method)
+                        methods[key] = code_fingerprint(method.__code__)
+                return {**result, "singleton": type(item).__name__, "methods": methods}
+        if module == "awkward._util" and type(item).__name__ == "Sentinel":
+            from awkward._util import Sentinel
+            data = vars(item)
+            if type(item) is not Sentinel or set(data) != {"_name", "_module"} or not all(type(v) is str for v in data.values()) or not data["_module"].startswith("awkward.") or getattr(importlib.import_module(data["_module"]), data["_name"], None) is not item:
+                raise UnsupportedReference("modified Awkward sentinel is unsupported")
+            return {**result, "sentinel": data.copy(), "repr": state(Sentinel.__repr__, depth + 1)}
+        if module == "awkward._broadcasting" and type(item).__name__ == "BroadcastParameterRule":
+            from awkward._broadcasting import BroadcastParameterRule
+            if type(item) is not BroadcastParameterRule or item is not BroadcastParameterRule[item.name] or type(item.value) is not str:
+                raise UnsupportedReference("modified broadcasting policy is unsupported")
+            return {**result, "enum_name": item.name, "enum_value": item.value}
         if type(item).__module__ == "typing" and not isinstance(item, type):
             return {**result, "typing": repr(item)}
         if type(item).__module__ == "awkward._nplikes.numpy_like" and type(item).__name__ == "NumpyMetadata":
@@ -181,7 +260,10 @@ def _binding_fingerprint(value):
             for method in ("__init__", "apply", "axis_none_reducer", *sorted(class_methods)):
                 # Resolve the raw descriptor without running custom __get__ code.
                 descriptor = member(method)
-                if name == "ArgMin" and method == "__init__" and descriptor is object.__init__:
+                import typing
+                if name == "ArgMin" and method == "__init__" and descriptor in (object.__init__, typing._no_init_or_replace_init):
+                    # Protocol's first construction installs object.__init__.
+                    # Both states perform the same no-op initialization.
                     methods[method] = {"builtin": "object.__init__"}
                     continue
                 expected = classmethod if method in class_methods else types.FunctionType
@@ -197,6 +279,7 @@ def _binding_fingerprint(value):
             if id(item) in seen:
                 return {"function_reference": seen[id(item)]}
             _trusted_function(item)
+            approve_default_lists(item)
             seen[id(item)] = len(seen)
             result["code"] = code_fingerprint(item.__code__)
             result["defaults"] = state(item.__defaults__, depth + 1)
@@ -228,7 +311,7 @@ def _binding_fingerprint(value):
                         break
             result["module_attributes"] = attributes
             return result
-        if isinstance(item, (type, types.BuiltinFunctionType)) and module.split(".")[0] in sys.stdlib_module_names | {"numpy", "awkward"}:
+        if isinstance(item, (type, types.BuiltinFunctionType, types.MethodDescriptorType, types.WrapperDescriptorType)) and module.split(".")[0] in sys.stdlib_module_names | {"numpy", "awkward"}:
             return result
         # NumPy's native dispatchers/ufuncs can wrap Python implementations.
         if module.split(".")[0] == "numpy" and type(item).__module__.startswith("numpy"):
@@ -297,7 +380,7 @@ def _validate_function(node, modules: dict[str, str], symbols: set[str], constan
         ast.FunctionDef, ast.arguments, ast.arg, ast.Assign, ast.Return, ast.Expr,
         ast.Name, ast.Load, ast.Store, ast.Constant, ast.Attribute, ast.Subscript,
         ast.Slice, ast.Tuple, ast.BinOp, ast.UnaryOp, ast.BoolOp, ast.Compare,
-        ast.Call, ast.keyword, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv,
+        ast.Call, ast.keyword, ast.Dict, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv,
         ast.Mod, ast.Pow, ast.BitAnd, ast.BitOr, ast.BitXor, ast.USub, ast.UAdd,
         ast.Invert, ast.Not, ast.And, ast.Or, ast.Eq, ast.NotEq, ast.Lt,
         ast.LtE, ast.Gt, ast.GtE,

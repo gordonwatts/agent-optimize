@@ -22,6 +22,9 @@ class FilterSumGraph:
 
 
 def graph_from_dict(value):
+    if value.get("reduction") == "assignment_argmin":
+        from .assignments import AssignmentGraph
+        return AssignmentGraph(**{**value, "collection_path": tuple(value["collection_path"]), "fields": tuple(value["fields"]), "event_fields": tuple(value["event_fields"]), "scalar_arguments": tuple(value["scalar_arguments"])})
     if value.get("reduction") == "argmin":
         from .argmin import ArgminGraph
         return ArgminGraph(value["array_argument"], tuple(value["collection_path"]), value["score"], value["value"], tuple(value["fields"]), tuple(value["scalar_arguments"]))
@@ -47,6 +50,9 @@ def predicate_is_array(node):
 
 def parse_filter_sum(source: str) -> FilterSumGraph:
     tree, name = validate_frozen_source(source)
+    if any(isinstance(node, ast.Attribute) and node.attr == "argcartesian" for node in ast.walk(tree)):
+        from .assignments import parse_assignments
+        return parse_assignments(tree)
     if any(isinstance(node, ast.Attribute) and node.attr == "argmin" for node in ast.walk(tree)):
         from .argmin import parse_argmin
         return parse_argmin(tree)

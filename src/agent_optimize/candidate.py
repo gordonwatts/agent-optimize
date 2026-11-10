@@ -20,13 +20,14 @@ class InputContract:
     scalar_types: dict
     output_kind: str
     output_dtype: str
+    event_fields: tuple[str, ...] = ()
 
 
 def contract_from_dict(value):
     return InputContract(
         value["array_argument"], value["schema"], tuple(value["collection_path"]),
         tuple(value["fields"]), tuple(value["scalar_names"]), value["scalar_types"],
-        value["output_kind"], value["output_dtype"],
+        value["output_kind"], value["output_dtype"], tuple(value.get("event_fields", ())),
     )
 
 
@@ -106,7 +107,7 @@ def make_contract(graph: FilterSumGraph, arguments: dict, result_metadata: dict)
     types = {name: scalar_type(arguments[name]) for name in scalar_names}
     if not set(graph.scalar_arguments) <= set(scalar_names):
         raise UnsupportedGraph("missing scalar selection argument")
-    is_argmin = getattr(graph, "reduction", None) == "argmin"
+    is_argmin = getattr(graph, "reduction", None) in ("argmin", "assignment_argmin")
     if is_argmin and (any(np.dtype(dtype) != np.dtype("float64") for dtype in field_types.values()) or graph.scalar_arguments or np.dtype(result_metadata["dtype"]) != np.dtype("float64")):
         raise UnsupportedGraph("argmin currently requires float64 fields/output and no scalar arguments")
     if not is_argmin and _predicate_type(graph.predicate, field_types, types) != "bool":
@@ -120,7 +121,7 @@ def make_contract(graph: FilterSumGraph, arguments: dict, result_metadata: dict)
         raise UnsupportedGraph("the reference reduction dtype is unsupported by Numba")
     contract = InputContract(
         graph.array_argument, array.layout.form.to_dict(), graph.collection_path,
-        graph.fields, scalar_names, types, result_metadata["kind"], dtype.str,
+        graph.fields, scalar_names, types, result_metadata["kind"], dtype.str, tuple(getattr(graph, "event_fields", ())),
     )
     adapt_inputs(contract, arguments)
     return contract
@@ -145,6 +146,15 @@ def adapt_inputs(contract: InputContract, arguments: dict):
     layout = collection_layout(array, contract.collection_path)
     offsets = _readonly(layout.offsets.data)
     columns = tuple(_readonly(layout.content.content(name).data) for name in contract.fields)
+    event_columns = []
+    for path in contract.event_fields:
+        value = array
+        for field in path.split("."):
+            value = value[field]
+        if not isinstance(value.layout, ak.contents.NumpyArray) or value.layout.data.ndim != 1 or value.layout.data.dtype != np.dtype("float64") or len(value) != len(array):
+            raise UnsupportedGraph("assignment event fields must be flat float64 arrays aligned with events")
+        event_columns.append(_readonly(value.layout.data))
+    columns = (*columns, *event_columns)
     scalars = []
     for name in contract.scalar_names:
         value = arguments[name]
@@ -168,6 +178,9 @@ def wrap_output(contract: InputContract, raw, event_count: int):
 
 def fused_candidate_source(graph: FilterSumGraph, contract: InputContract) -> str:
     """Handwritten loop template; no fast-math, reassociation, or sample values."""
+    if getattr(graph, "reduction", None) == "assignment_argmin":
+        from .assignments import candidate_source
+        return candidate_source(graph, contract)
     if getattr(graph, "reduction", None) == "argmin":
         from .argmin import candidate_source
         return candidate_source(graph, contract)

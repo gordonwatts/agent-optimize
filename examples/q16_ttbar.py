@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.13,<3.14"
 # dependencies = [
-#   "agent-optimize @ git+https://github.com/gordonwatts/agent-optimize.git@5d5f1fecc57bdb3155a104e5759afd4ae86b311c",
+#   "agent-optimize @ git+https://github.com/gordonwatts/agent-optimize.git@efb7dbd23923ebd27c16fef23f2a90906b0de743",
 #   "typer>=0.12",
 #   "func_adl_servicex_xaodr25",
 #   "servicex>=3.0",
@@ -42,9 +42,9 @@ This preserves the generated benchmark's reconstruction. Its one-file mean was
 That result is historical context from the supplied script; physics agreement
 with the reference is still unresolved. Synthetic mode validates execution only.
 
-The @optimize boundary covers candidate mass scoring and winner selection.
-Candidate construction, neutrino reconstruction, delivery, I/O and plots remain
-in Python. See docs/case-study-q16.md for the WSL recording workflow. Outputs are plot_1.png and the unweighted METRIC line.
+The @optimize boundary covers neutrino reconstruction, ordered jet assignment,
+candidate construction, scoring and winner selection. Delivery, I/O, event
+packing and plots remain outside the compiled boundary. See docs/case-study-q16.md for the WSL recording workflow. Outputs are plot_1.png and the unweighted METRIC line.
 """
 
 from pathlib import Path
@@ -110,35 +110,49 @@ def neutrino_pz(lepton, metx, mety):
 
 
 def reconstruct(jets, lepton, metx, mety):
-    """Return one mass per event using jagged arrays of jet assignments.
+    """Pack aligned event inputs; construction and scoring share one boundary."""
+    events = ak.to_packed(ak.zip({"jets": jets, "lepton": lepton, "metx": metx, "mety": mety}, depth_limit=1))
+    return reconstruct_events(events)
 
-    Inputs have shapes events * var * {px,py,pz,e} for jets and
-    events * {px,py,pz,e} for the lepton. Candidate order matches the original
-    pair/b-had/b-lep loops, so argmin also preserves first-candidate tie breaking.
-    Call on bounded event batches: assignment counts grow as n*(n-1)*(n-2)*(n-3)/2.
-    """
-    nuz = neutrino_pz(lepton, metx, mety)
-    nu = ak.zip({"px": metx, "py": mety, "pz": nuz,
-                 "e": np.sqrt(metx * metx + mety * mety + nuz * nuz)})
-    lep_w = add(lepton, nu)
-    indexed = ak.with_field(jets, ak.local_index(jets, axis=1), "index")
-    pairs = ak.combinations(indexed, 2, fields=["j1", "j2"], axis=1)
-    hadronic = ak.cartesian({"w": pairs, "b": indexed}, axis=1)
-    hadronic = hadronic[(hadronic.b.index != hadronic.w.j1.index)
-                        & (hadronic.b.index != hadronic.w.j2.index)]
-    candidates = ak.cartesian({"had": hadronic, "blep": indexed}, axis=1)
-    candidates = candidates[(candidates.blep.index != candidates.had.w.j1.index)
-                            & (candidates.blep.index != candidates.had.w.j2.index)
-                            & (candidates.blep.index != candidates.had.b.index)]
-    thad = add(add(candidates.had.w.j1, candidates.had.w.j2), candidates.had.b)
-    tlep = add(lep_w[:, np.newaxis], candidates.blep)
-    # Pack the indexed candidate fields into the recorder's numeric list layout.
-    candidates = ak.to_packed(ak.zip({
-        "he": thad.e, "hx": thad.px, "hy": thad.py, "hz": thad.pz,
-        "le": tlep.e, "lx": tlep.px, "ly": tlep.py, "lz": tlep.pz,
-    }))
-    return select_ttbar_mass(candidates)
 
+@optimize
+def reconstruct_events(events):
+    """Reconstruct via ordered distinct jet assignments and first-minimum scoring."""
+    jets = events.jets
+    px = events.lepton.px
+    py = events.lepton.py
+    pz = events.lepton.pz
+    energy = events.lepton.e
+    metx = events.metx
+    mety = events.mety
+    mu = MW * MW / 2.0 + px * metx + py * mety
+    a = energy * energy - pz * pz
+    disc = mu * mu - a * (metx * metx + mety * mety)
+    root = energy * np.sqrt(np.maximum(disc, 0.0))
+    plus = (mu * pz + root) / a
+    minus = (mu * pz - root) / a
+    nuz = ak.where(abs(plus) <= abs(minus), plus, minus)
+    nue = np.sqrt(metx * metx + mety * mety + nuz * nuz)
+    indices = ak.argcartesian({"i": jets, "j": jets, "k": jets, "l": jets}, axis=1)
+    valid = (indices.i < indices.j) & (indices.k != indices.i) & (indices.k != indices.j) & (indices.l != indices.i) & (indices.l != indices.j) & (indices.l != indices.k)
+    chosen = indices[valid]
+    j1 = jets[chosen.i]
+    j2 = jets[chosen.j]
+    bh = jets[chosen.k]
+    bl = jets[chosen.l]
+    h_e = (0 + ((0 + j1.e) + j2.e)) + bh.e
+    l_e = (0 + ((0 + energy) + nue)[:, None]) + bl.e
+    h_px = (0 + ((0 + j1.px) + j2.px)) + bh.px
+    l_px = (0 + ((0 + px) + metx)[:, None]) + bl.px
+    h_py = (0 + ((0 + j1.py) + j2.py)) + bh.py
+    l_py = (0 + ((0 + py) + mety)[:, None]) + bl.py
+    h_pz = (0 + ((0 + j1.pz) + j2.pz)) + bh.pz
+    l_pz = (0 + ((0 + pz) + nuz)[:, None]) + bl.pz
+    mh = np.sqrt(np.maximum(0.0, h_e ** 2 - h_px ** 2 - h_py ** 2 - h_pz ** 2))
+    ml = np.sqrt(np.maximum(0.0, l_e ** 2 - l_px ** 2 - l_py ** 2 - l_pz ** 2))
+    score = abs(mh - MTOP) + abs(ml - MTOP)
+    combined = np.sqrt(np.maximum(0.0, ((0 + h_e) + l_e) ** 2 - ((0 + h_px) + l_px) ** 2 - ((0 + h_py) + l_py) ** 2 - ((0 + h_pz) + l_pz) ** 2))
+    return ak.sum(combined[ak.local_index(score, axis=1) == ak.argmin(score, axis=1, keepdims=True)], axis=1)
 
 @optimize
 def select_ttbar_mass(c):
