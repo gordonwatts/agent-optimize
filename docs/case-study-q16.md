@@ -278,7 +278,7 @@ above remains a separate demonstration.
 
 ### Live model follow-up with three-minute requests
 
-The [latest live q16 report](examples/q16-live-report.md) uses a fresh optimization
+The [three-attempt live q16 report](examples/q16-live-three-attempt-report.md) uses a fresh optimization
 session through the script's ServiceX path, two real-data verification groups,
 three model-code attempts and a fixed 180-second request timeout. All three
 requests returned usage evidence; none timed out. The analysis again processed
@@ -314,3 +314,30 @@ messages are also preserved. Recorded inputs, case identifiers and runtime worke
 exceptions are not forwarded. An offline end-to-end test deliberately causes a
 real Numba compilation error and verifies that its diagnostic reaches the next
 proposal, which is then corrected and accepted.
+
+
+### Ten attempts with compiler feedback
+
+The [latest live report](examples/q16-live-report.md) records a fresh ServiceX-path
+optimization session with ten Sol 6.1 attempts and three-minute request limits.
+All ten requests completed with usage evidence and no timeouts. The analysis
+processed 7,552 selected events and retained two real-data verification groups.
+
+The run used 118,467 input tokens and 24,860 output tokens (143,327 total), with a
+complete frozen estimated API cost of USD 0.5311853. Input details include 5,653
+cache-read tokens and 112,784 cache-write tokens; output includes 10,115 reasoning
+tokens. These detail counts are subsets of their respective input/output totals.
+The complete run took 568.018 seconds, including 11.811 seconds for the analysis
+and 555.763 seconds for optimization work.
+
+Attempt seven failed Numba compilation. Its 1,132-character compiler diagnostic
+was present in attempt eight's actual provider request, and attempt eight
+compiled successfully. This exercises the repaired compiler-feedback path with
+a real model, in addition to the offline regression.
+
+No Numba function was accepted. The final version passed 109 of 111 checks,
+including both real-data groups, but failed the two nonfinite-order energy tests.
+The synthetic count varies with the bounded extra tests proposed by each model
+response. The strict exact-output gate left Python in use, so no speedup is
+claimed. The remaining issue is numerical equivalence, not missing compiler
+feedback; more calls were not made beyond the authorized ten-attempt session.

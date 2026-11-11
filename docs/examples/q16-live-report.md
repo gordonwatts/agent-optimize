@@ -5,7 +5,7 @@
 Command used for this run:
 
 ```text
-agent-optimize run --json --report --provider openai --model gpt-6.1-sol --verification-groups 2 --max-output-tokens 8192 --artifact-root .agent-optimize/q16-live-servicex-180 -- C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/.venv/Scripts/python.exe -B C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/examples/q16_ttbar.py --n-files 1 --output-dir .agent-optimize/q16-live-servicex-180-plots
+agent-optimize run --json --report --provider openai --model gpt-6.1-sol --verification-groups 2 --max-attempts 10 --max-output-tokens 8192 --artifact-root .agent-optimize/q16-live-servicex-ten-feedback -- C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/.venv/Scripts/python.exe -B C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/examples/q16_ttbar.py --n-files 1 --output-dir .agent-optimize/q16-live-servicex-ten-feedback-plots
 ```
 
 ## Function speedup
@@ -21,17 +21,17 @@ No Numba function with measured timing evidence was saved.
 
 | Phase | Elapsed time |
 | --- | ---: |
-| Run analysis once and save verification groups | 11.947 s |
-| Generate, check, compile and time Numba functions | 125.329 s |
-| Total elapsed time | 137.705 s |
+| Run analysis once and save verification groups | 11.811 s |
+| Generate, check, compile and time Numba functions | 555.763 s |
+| Total elapsed time | 568.018 s |
 
 The total covers the analysis and optimization work, plus coordination overhead. Preparing the Python environment is excluded. The analysis executes once; subsequent checks rerun only the saved function inputs.
 
-API usage: 26,778 tokens; cost USD 0.0999033 estimated.
+API usage: 143,327 tokens; cost USD 0.5311853 estimated.
 
 | Code generator / model | Reported tokens | Estimated API cost |
 | --- | ---: | ---: |
-| openai / gpt-6.1-sol | 26778 | USD 0.0999033 |
+| openai / gpt-6.1-sol | 143327 | USD 0.5311853 |
 
 ## Checks and saved code
 

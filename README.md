@@ -42,8 +42,8 @@ the saved Numba code. Compilation and first use are included in optimization tim
 Unsupported or unsuccessful functions explain why Python remains in use.
 See the [real q16 sample report](docs/examples/q16-report.md). The
 [live model trial report](docs/examples/q16-live-report.md) records real token
-usage and a complete per-session cost estimate from a three-minute-timeout
-ServiceX/model trial; no Numba function was accepted in that trial. Generate an offline
+usage and a complete per-session cost estimate from a ten-attempt, three-minute-timeout
+ServiceX/model trial with compiler feedback; no Numba function was accepted in that trial. Generate an offline
 q16 example with:
 
 ```sh
