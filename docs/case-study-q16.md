@@ -50,8 +50,7 @@ Install the generic CLI once, with uv available on PATH:
 ```bash
 uv tool install git+https://github.com/gordonwatts/agent-optimize.git
 agent-optimize run \
-  --artifact-root .agent-optimize/q16 --max-calls 2 \
-  --worker-seconds 60 --function-seconds 240 --search-seconds 300 \
+  --artifact-root .agent-optimize/q16 --verification-groups 2 \
   examples/q16_ttbar.py --n-files 1 --output-dir plots/q16
 ```
 
@@ -68,9 +67,10 @@ library pin is honored; no q16-specific installation or active-environment
 modification is needed. The [user guide](index.md) describes current metadata
 support and the explicit command form for already prepared environments.
 
-The two recorded calls are complete batches, each containing up to 128 selected
-events. Capture and search budgets still apply. Later batches execute the
-reference during recording without additional captures.
+Each recorded call contains the selected events from one group of up to 128
+ROOT entries. The number of selected events varies between groups. Capture and
+search budgets still apply. Later groups execute the original Python function
+during recording without saving additional example inputs.
 
 The deterministic local provider proposes a Numba loop, checks the frozen
 reference and mandatory cases, and measures ordinary dispatch before deciding
@@ -124,6 +124,37 @@ supported dependency state. Code, dependency, schema and environment compatibili
 quarantine, and reference fallback remain part of the existing workflow.
 
 ## Verification and scope
+
+### Shareable run report
+
+`agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128`
+generates a Markdown summary with timings, usage/cost, correctness results and
+the frozen Python and saved Numba source. The analysis executes once.
+[This real-data sample](examples/q16-report.md) leads with the function speedup,
+then the elapsed time and API cost required to obtain it. It processes all
+30,000 entries of one cached delivered file, yielding 7,552 selected events in
+235 calls. Its two timing groups contain 24 selected events each, with 131 and
+142 jets. Their saved input buffers were matched exactly to the first two
+selected groups read from the cached ROOT file. The groups contain different
+events; equal event counts do not imply repeated data.
+
+The accepted replacement passed 108 checks: 2 recorded inputs plus 106
+generated inputs (104 required edge/boundary inputs, one public synthetic
+example and one proposed by the generator). A check tests one function input,
+which may contain many events. The first replacement failed correctness checks;
+the later 233 analysis calls still ran, without saving additional inputs.
+Only `reconstruct_events` was called; its boundary includes both candidate
+construction and scoring. The separately decorated `select_ttbar_mass` helper
+was unused, which explains the report's one-function count.
+
+The sample uses a deterministic local generator, so it reports zero model API
+tokens and charges for this run. The original function and compiled replacement
+are genuinely measured; code generation is a local demonstration of the search
+and feedback process. Model-based searches have their own API cost. The sample uses the same generic report template as other analyses; `--n-files 0`, without `--input-file`,
+instead requests the entire ServiceX dataset. Its timing table covers only the
+two recorded function inputs; the full-reconstruction measurements below are
+separate. Reference agreement does not establish physics validity; the mean
+discrepancy described below remains unresolved.
 
 ### Full reconstruction (November 9, 2026)
 
@@ -216,7 +247,7 @@ For an offline execution check:
 
 ```bash
 agent-optimize run \
-  --artifact-root .agent-optimize/q16-synthetic --max-calls 2 \
+  --artifact-root .agent-optimize/q16-synthetic --verification-groups 2 \
   examples/q16_ttbar.py --synthetic-events 256 \
   --output-dir plots/q16-synthetic
 ```
@@ -227,3 +258,105 @@ supplied script reported a one-file mean of 1537.14 GeV, outside q16's stated
 reconstructed 7,552 selected events with a mean of 1537.14 GeV. Agreement with
 that benchmark remains unresolved; optimizing the existing reconstruction does
 not resolve it.
+
+
+### Live model trial through ServiceX
+
+The [initial 60-second-timeout report](examples/q16-live-timeout-report.md) records an actual ServiceX
+transformation/download and a Sol 6.1 search. The analysis processed 7,552 selected
+events from one delivered file and retained two verification groups from 235
+function calls. The first model response used 7,771 reported tokens, with a
+frozen estimated cost of USD 0.0352885. Its code failed two nonfinite edge-case
+checks. The next two requests exceeded the fixed 60-second timeout and returned
+no usage evidence. The token and cost totals are therefore explicitly partial;
+the unknown requests are not counted as free.
+
+No Numba function was accepted, so this trial reports no Numba speedup and leaves
+the original Python function in use. The follow-up trial below uses a longer model-request timeout. The successful local-generator sample
+above remains a separate demonstration.
+
+
+### Live model follow-up with three-minute requests
+
+The [three-attempt live q16 report](examples/q16-live-three-attempt-report.md) uses a fresh optimization
+session through the script's ServiceX path, two real-data verification groups,
+three model-code attempts and a fixed 180-second request timeout. All three
+requests returned usage evidence; none timed out. The analysis again processed
+7,552 selected events from one delivered file.
+
+Reported usage totals 20,574 input tokens and 6,204 output tokens: 26,778 tokens
+in total. Input details include 5,653 cache-read tokens and 14,912 cache-write
+tokens. Output includes 2,356 reasoning tokens. These detail counts are subsets,
+not additional tokens. The frozen Standard-tier estimate is USD 0.0999033, with
+no unpriced attempts in this session. The earlier timed-out session remains
+separate and still has an unknown full cost.
+
+The first translation used unsupported object access/methods. The second failed
+two nonfinite edge-case checks; the third still differed from the original
+function on required tests. No Numba function was accepted, so no Numba speedup
+is claimed. The script retains Python. This trial verifies live usage/cost
+reporting but does not establish successful model-generated optimization of q16.
+
+
+### Ten attempts and compiler-feedback diagnosis
+
+The [first ten-attempt report](examples/q16-live-ten-before-compiler-feedback.md)
+records 114,482 input tokens and 23,962 output tokens (138,444 total), with a
+complete frozen API estimate of USD 0.5122428. No Numba function was accepted.
+Four attempts failed during compilation; several repeated the same unsupported
+array operation. The provider history contained only a general correctness-failure
+message, so the model did not receive the compiler's explanation.
+
+The feedback pipeline now sends candidate compiler diagnostics, including paths
+and source locations, after removing terminal styling. Diagnostics are bounded
+to 24 KiB of encoded JSON with an explicit truncation notice. Source-validation
+messages are also preserved. Recorded inputs, case identifiers and runtime worker
+exceptions are not forwarded. An offline end-to-end test deliberately causes a
+real Numba compilation error and verifies that its diagnostic reaches the next
+proposal, which is then corrected and accepted.
+
+
+### Ten attempts with compiler feedback
+
+The [latest live report](examples/q16-live-report.md) records a fresh ServiceX-path
+optimization session with ten Sol 6.1 attempts and three-minute request limits.
+All ten requests completed with usage evidence and no timeouts. The analysis
+processed 7,552 selected events and retained two real-data verification groups.
+
+The run used 118,467 input tokens and 24,860 output tokens (143,327 total), with a
+complete frozen estimated API cost of USD 0.5311853. Input details include 5,653
+cache-read tokens and 112,784 cache-write tokens; output includes 10,115 reasoning
+tokens. These detail counts are subsets of their respective input/output totals.
+The complete run took 568.018 seconds, including 11.811 seconds for the analysis
+and 555.763 seconds for optimization work.
+
+Attempt seven failed Numba compilation. Its 1,132-character compiler diagnostic
+was present in attempt eight's actual provider request, and attempt eight
+compiled successfully. This exercises the repaired compiler-feedback path with
+a real model, in addition to the offline regression.
+
+No Numba function was accepted. The final version passed 109 of 111 checks,
+including both real-data groups, but failed the two nonfinite-order energy tests.
+The synthetic count varies with the bounded extra tests proposed by each model
+response. The strict exact-output gate left Python in use, so no speedup is
+claimed. The remaining issue is numerical equivalence, not missing compiler
+feedback; more calls were not made beyond the authorized ten-attempt session.
+
+
+### Complete-file check after synthetic rejection
+
+At Gordon's request, the final LLM candidate was tested across the complete
+delivered file even though synthetic tests had rejected it. The
+[complete-file comparison](examples/q16-full-data-check.md) covers all 7,552
+selected events and 235 function calls, plus three warm full-reconstruction
+passes. Of the real outputs, 7,547 matched bit for bit; five differed by at most
+four ULP (6.82121e-13 GeV absolute, 5.49324e-16 relative). The synthetic failures
+were exclusively NaN sign/payload-bit differences, with matching NaN positions
+and matching finite outputs.
+
+The checked candidate adapter's median was 0.245314 s versus 5.780842 s for the
+supplied Python reconstruction, a 23.57x warm reconstruction speedup. This is a
+diagnostic comparison including input packing/adaptation and output wrapping;
+it excludes ServiceX, ROOT reading, plotting and compilation. No accepted
+artifact was installed and the strict acceptance policy was not changed. No
+additional model calls were made.

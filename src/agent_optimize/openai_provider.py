@@ -61,7 +61,8 @@ def usage_summary(usage):
         if type(value) is int and value >= 0:
             result[name] = value
     for target, container, field in (("cached_input_tokens", "input_tokens_details", "cached_tokens"),
-                                     ("reasoning_output_tokens", "output_tokens_details", "reasoning_tokens")):
+                                     ("reasoning_output_tokens", "output_tokens_details", "reasoning_tokens"),
+                                     ("cache_write_input_tokens", "input_tokens_details", "cache_write_tokens")):
         value = getattr(getattr(usage, container, None), field, None)
         if type(value) is int and value >= 0:
             result[target] = value
@@ -74,11 +75,12 @@ def propose(request, key, settings, *, client_factory=None):
     if client_factory is None:
         client_factory = OpenAI
     request_count = 0
+    usage = {}
     def count_request(request):
         nonlocal request_count
         request_count += 1
     def failure(status, diagnostic=None):
-        return {"status": status, "provider_request_count": request_count, "provider_error": diagnostic or status}
+        return {"status": status, "provider_request_count": request_count, "provider_usage": usage, "provider_error": diagnostic or status, "provider_service_tier": "default", "provider_response_model": settings.model}
     try:
         # Pin the endpoint: OPENAI_BASE_URL and organization/project environment
         # settings must not silently redirect a credential or a request.
@@ -88,7 +90,7 @@ def propose(request, key, settings, *, client_factory=None):
                 model=settings.model, instructions=INSTRUCTIONS,
                 input=json.dumps({"problem": request["problem"], "history": request["history"]}, allow_nan=False),
                 text_format=Proposal, max_output_tokens=settings.max_output_tokens,
-                timeout=settings.timeout, store=False,
+                timeout=settings.timeout, store=False, service_tier="default",
             )
         usage = usage_summary(getattr(response, "usage", None))
         if getattr(response, "status", None) == "incomplete":
@@ -102,6 +104,11 @@ def propose(request, key, settings, *, client_factory=None):
             result = {"status": "malformed"}
         else:
             result = response.output_parsed.model_dump()
+        tier = getattr(response, "service_tier", "default")
+        result["provider_service_tier"] = tier if tier in ("default", "flex", "priority", "fast", "ultrafast") else "unknown"
+        import re
+        model = getattr(response, "model", settings.model)
+        result["provider_response_model"] = model if isinstance(model, str) and re.fullmatch(r"[A-Za-z0-9._-]{1,100}", model) else "unknown"
         result["provider_usage"] = usage
         result["provider_request_count"] = request_count
         if result["status"] != "proposal":
@@ -109,6 +116,8 @@ def propose(request, key, settings, *, client_factory=None):
         # Neither an echoed credential nor any raw SDK exception is persisted.
         return failure("error") if contains_credential(result, key) else result
     except Exception as error:
+        # Some SDK parse failures retain a completion with billable usage.
+        usage = usage_summary(getattr(getattr(error, "completion", None), "usage", None))
         # SDK parse can raise before returning an incomplete response.
         if type(error).__name__ == "LengthFinishReasonError":
             return failure("incomplete")
@@ -136,7 +145,7 @@ def main():
     settings = ProviderSettings(**private["settings"])
     response = propose(read_json(request_path), private["key"], settings)
     if len(json_bytes(response)) > limit:
-        response = {"status": "response_limit", "provider_usage": response.get("provider_usage", {}), "provider_request_count": response.get("provider_request_count"), "provider_error": "response_limit"}
+        response = {"status": "response_limit", **{key: response[key] for key in ("provider_usage", "provider_request_count", "provider_service_tier", "provider_response_model") if key in response}, "provider_error": "response_limit"}
     write_json(response_path, {"schema_version": 1, "response": response})
 
 

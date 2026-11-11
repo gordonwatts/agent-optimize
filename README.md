@@ -17,13 +17,72 @@ The library supports Python 3.12 and 3.13; q16 uses 3.13.
 Its decorated boundary covers neutrino reconstruction, ordered jet assignment,
 candidate construction, mass scoring and first-minimum selection.
 
+## Share what a run did
+
+```sh
+agent-optimize run --report analysis.py
+```
+
+`--report` writes a Markdown file in the current directory, named after the
+analysis/command plus a session identifier. The path is printed to stderr and
+included as `markdown_report_path` in JSON. Existing reports are never overwritten.
+The analysis runs once; report generation reads its retained evidence.
+
+`--verification-groups 2` saves up to two real-data groups per function for
+correctness checks and timing; these appear as verification groups 1 and 2 in
+the report. `--max-attempts` limits replacement-code attempts per function and
+defaults to three.
+
+The report starts with original-versus-replacement function timings and the
+speedup, followed by the elapsed time and API cost needed to obtain the result.
+It explains the saved verification groups, which can each contain many events, and
+distinguishes recorded inputs from generated correctness checks. Each optimized
+function shows its frozen Python reference, a visible `@optimize` marker and
+the saved Numba code. Compilation and first use are included in optimization time.
+Unsupported or unsuccessful functions explain why Python remains in use.
+See the [real q16 sample report](docs/examples/q16-report.md). The
+[live model trial report](docs/examples/q16-live-report.md) records real token
+usage and a complete per-session cost estimate from a ten-attempt, three-minute-timeout
+ServiceX/model trial with compiler feedback; no Numba function was accepted in that trial. Generate an offline
+q16 example with:
+
+```sh
+agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128
+```
+
+Function timings include the overhead of calling the replacement through
+`@optimize` and describe the saved verification groups. Other analysis work is outside
+that comparison. Total elapsed time excludes Python environment preparation.
+Controlled test timings are labeled rather than presented as measurements.
+If an explicitly requested report cannot be written, the run reports an error
+(exit 2 unless the analysis already failed with its own nonzero status).
+
+Usage totals are available in human output and `usage_summary` in the durable
+JSON report, even without `--report`. They cover agent-optimize's model requests,
+including rejected/refused/incomplete attempts. Unknown usage remains unknown;
+partial totals show their coverage. Mock/no-request runs report zero API usage.
+Input, output and total tokens are separate from cached-read, cache-write and
+reasoning detail counts, which must not be counted again as additional tokens.
+
+Costs are USD **estimates**, not invoices. Each priced attempt retains a verified
+rate snapshot and source/date, so later pricing updates do not reprice history.
+The initial profile uses OpenAI direct API Standard rates, default 30-minute
+cache writes and the documented long-context adjustment. It excludes credits,
+taxes and regional premiums. Missing usage/cache details, unsupported models or
+service tiers leave the total estimate unavailable while preserving known costs.
+Requests explicitly select the Standard (`default`) service tier. Pricing is
+checked in rather than fetched during normal runs; rate updates require reviewing
+the [official pricing](https://developers.openai.com/api/docs/pricing),
+[cache accounting](https://developers.openai.com/api/docs/guides/prompt-caching)
+and model pages linked in each snapshot.
+
 ## Script-owned environments
 
 With uv on PATH, pass a Python script directly to resolve its inline dependencies
 and Python requirement before recording:
 
 ```text
-agent-optimize run --max-calls 2 examples/q16_ttbar.py --n-files 1
+agent-optimize run --verification-groups 2 examples/q16_ttbar.py --n-files 1
 ```
 
 Optimizer options go before the script; all following arguments belong to the
@@ -380,7 +439,7 @@ and metadata. Output overflow discards the partial capture. Observed input
 mutation also discards it. These controls are available before `--`:
 
 ```text
-agent-optimize run --artifact-root "artifacts with spaces" --max-capture-bytes 1048576 --max-calls 2 -- python analysis.py
+agent-optimize run --artifact-root "artifacts with spaces" --max-capture-bytes 1048576 --verification-groups 2 -- python analysis.py
 ```
 
 For an ordinary run with a custom artifact root, set
@@ -393,8 +452,8 @@ Buffers are written incrementally with bounded temporary chunks; inputs are neve
 silently truncated or packed into a full extra copy. This bounds snapshot storage
 and copying, not the reference function's own allocations. A session lock shares
 budgets between recording processes. A crashed lock owner causes later calls to
-fall back after a bounded wait. Worker replay has a 30-second per-call timeout;
-worker output is bounded to 64 KiB, and provider credentials and the recording
+fall back after a bounded wait. Replay and correctness checks have no execution
+time limit. Worker output is bounded to 64 KiB, and provider credentials and the recording
 marker are removed from worker environments. Process separation is not a sandbox
 for hostile code.
 
@@ -440,10 +499,8 @@ costs are reported separately.
 
 Every batch on every retained recording must improve its median by at least 10%.
 The candidate's upper quartile must also be at least 10% below the reference's
-lower quartile; uncertainty, regression, missing evidence, or an exhausted deadline
-keeps Python in use. Per-function experiments have a 120-second deadline; workers
-have a 30-second maximum and timing uses at most 20 seconds of the remaining
-budget. Small workloads may provide no eligible improvement. Timing claims apply
+lower quartile; uncertainty, regression or missing evidence keeps Python in use.
+There is no function, worker or overall optimization time limit. Small workloads may provide no eligible improvement. Timing claims apply
 only to the measured workloads. Tests use explicitly labelled
 `controlled-test-fixture` timing records to prove acceptance paths without making
 performance claims; ordinary CLI runs use measured timings.
@@ -475,19 +532,22 @@ Search defaults to a deterministic local mock, with no API key, SDK, or network
 calls. It proposes an intentionally wrong loop first, then a corrected loop after feedback.
 The evaluator owns the reference, mandatory tests, timing, and acceptance. Provider
 requests contain source, graph, schema, signature, constraints, independent synthetic
-examples, and sanitized diagnostics. Recorded arrays, scalars, worker exceptions,
-and recording-derived counterexamples never enter provider requests or feedback.
+examples, and sanitized diagnostics. Candidate compilation failures pass the compiler diagnostic, including paths
+and source locations, back to the model (bounded to 24 KiB of JSON text). Source
+validation failures likewise preserve the validator message. Recorded arrays,
+scalars, runtime worker exceptions and recording-derived counterexamples remain
+local.
 Local request/response files are retained alongside each proposal's evaluation.
 
-Defaults are three proposals per function (shared across its input contracts),
-120 seconds per function, 30 seconds per worker capped by the remaining deadline,
-and 300 seconds for the session search. Requests are limited to 128 KiB, responses
+The default is three replacement-code attempts per function, shared across its
+input contracts. Model requests have a fixed 180-second (three-minute) timeout; local checking,
+timing and the overall optimization have no time limits. Requests are limited to 128 KiB, responses
 to 64 KiB, and proposed extra cases to eight per proposal. Extra cases use only
 `zeros`, bounded `lengths`, or a known field's `boundaries`; the evaluator builds
 them without executing provider test code and retains every mandatory test.
 Each completed proposal and the session report are atomically checkpointed before
 another proposal is requested. Interruptions and later failures preserve earlier
-completed evaluations and saved artifacts. Proposal count, deadlines, byte limits,
+completed evaluations and saved artifacts. Attempt count, byte limits,
 and case count can be overridden with the corresponding `run --help` options;
 effective limits are printed before the command starts.
 
@@ -496,7 +556,7 @@ effective limits are printed before the command starts.
 Install `pip install -e '.[openai]'` and select `--provider openai` explicitly:
 
 ```text
-agent-optimize run --provider openai --model gpt-6.1-sol --provider-seconds 75 --max-output-tokens 4096 -- python analysis.py
+agent-optimize run --provider openai --model gpt-6.1-sol --max-output-tokens 4096 -- python analysis.py
 ```
 
 Supported IDs are `gpt-6.1-sol`, `gpt-6.1-terra`, and `gpt-6-luna`. Configure
@@ -504,7 +564,7 @@ Supported IDs are `gpt-6.1-sol`, `gpt-6.1-terra`, and `gpt-6-luna`. Configure
 Credential precedence is `--api-key` > the named environment variable > project
 root `.env` > user home `~/.env`; `OPENAI_API_KEY` alone is not used. A key's
 presence never enables live mode. The official SDK uses `responses.parse` with
-a Pydantic schema, retries disabled, a deadline-capped timeout, bounded output
+a Pydantic schema, retries disabled, a fixed 180-second (three-minute) model-request timeout, bounded output
 tokens, the official endpoint, and `store=False`. Reports/manifests identify the
 model and settings and retain allowlisted usage. Refusal, incomplete output,
 malformed output, transport failure, and timeout are reported separately.
@@ -528,13 +588,13 @@ List the synthetic comparison cases with `python -m benchmarks.compare_models
 --list`. A small offline smoke run uses:
 
 ```text
-python -m benchmarks.compare_models --provider mock --cases integer_threshold dijet_combinatorics nearest_jet_matching --events 16 --max-proposals 2
+python -m benchmarks.compare_models --provider mock --cases integer_threshold dijet_combinatorics nearest_jet_matching --events 16 --max-attempts 2
 ```
 
 Reproduce the small live comparison settings with:
 
 ```text
-python -m benchmarks.compare_models --provider openai --model gpt-6-luna --model gpt-6.1-terra --model gpt-6.1-sol --events 1000 --seed 20261106 --repeats 1 --max-proposals 2 --provider-seconds 75 --max-output-tokens 4096 --function-seconds 180 --search-seconds 210 --worker-seconds 40 --run-seconds 300
+python -m benchmarks.compare_models --provider openai --model gpt-6-luna --model gpt-6.1-terra --model gpt-6.1-sol --events 1000 --seed 20261106 --repeats 1 --max-attempts 2 --max-output-tokens 4096
 ```
 
 For the larger follow-up, add `--cases multi_field_regions`, set `--events

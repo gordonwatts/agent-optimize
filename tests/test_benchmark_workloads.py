@@ -68,7 +68,7 @@ def test_usage_absence_and_unsupported_fallback_are_reported_truthfully():
     assert result["unsupported_fallback_verified"] is True
     assert result["provider_attempts"] == 0
     assert result["http_request_count"] == 0
-    assert result["reported_token_totals"]["total_tokens"] is None
+    assert result["reported_token_totals"]["total_tokens"] == 0
     report["functions"] = [{"status": "reference", "search": {"proposals": 2}, "evaluations": [{"status": "provider_error", "provider_usage": {}, "provider_request_count": None}, {"status": "rejected", "provider_request_count": 1, "provider_usage": {"input_tokens": 20, "output_tokens": 10, "total_tokens": 30}}]}]
     result = summarize(report, expected_supported=True)
     assert result["provider_attempts"] == 2
@@ -93,7 +93,7 @@ def test_mock_runner_explicitly_overrides_inherited_live_provider(monkeypatch, t
     command, kwargs = invocations[0]
     assert command[command.index("--provider") + 1] == "mock"
     assert "--model" not in command
-    assert kwargs["timeout"] == 900
+    assert kwargs["timeout"] is None
 
 
 def test_runner_checkpoints_timeout_and_continues_next_case(monkeypatch, tmp_path):
@@ -101,14 +101,14 @@ def test_runner_checkpoints_timeout_and_continues_next_case(monkeypatch, tmp_pat
 
     def offline_process(command, **kwargs):
         invocations.append(command)
-        assert kwargs["timeout"] == 12
+        assert kwargs["timeout"] is None
         if len(invocations) == 1:
             raise subprocess.TimeoutExpired(command, 12, output=b"partial output")
         return subprocess.CompletedProcess(command, 0, json.dumps({"status": "completed", "child_exit_code": 0, "functions": [{"status": "unsupported"}]}))
 
     monkeypatch.setattr(compare_models, "run_benchmark_process", offline_process)
     output = tmp_path / "comparison"
-    assert compare_models.main(["--provider", "mock", "--cases", "integer_threshold", "dijet_combinatorics", "--run-seconds", "12", "--output", str(output)]) == 1
+    assert compare_models.main(["--provider", "mock", "--cases", "integer_threshold", "dijet_combinatorics", "--output", str(output)]) == 1
     report = json.loads((output / "comparison.json").read_text())
     assert len(invocations) == 2
     first, second = report["results"]

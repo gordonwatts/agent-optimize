@@ -82,3 +82,6 @@ Desktop.ini
 .agent-optimize/
 *.nbc
 *.nbi
+
+# Per-run Markdown exports (curated examples are kept separately).
+*.agent-optimize.md

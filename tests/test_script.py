@@ -50,11 +50,11 @@ def test_launch_preserves_declared_package_python_arguments_cwd_and_exit(tmp_pat
         return SimpleNamespace(returncode=7, stdout=None)
     monkeypatch.setattr(script.subprocess, "run", run)
     forwarded = [str(path), "--json", "spaces and ; shell $(syntax)", "", "--", "-x"]
-    arguments = ["run", "--max-calls", "2", *forwarded]
+    arguments = ["run", "--verification-groups", "2", *forwarded]
     assert script.launch_script(arguments, forwarded) == 7
     command, kwargs = calls[0]
     assert command[:7] == ["uv executable", "run", "--no-project", "--python", ">=3.13,<3.14", "--with-requirements", str(path)]
-    assert command[7:] == ["python", "-c", script.CONTROLLER, "3", "run", "--max-calls", "2", *forwarded]
+    assert command[7:] == ["python", "-c", script.CONTROLLER, "3", "run", "--verification-groups", "2", *forwarded]
     assert kwargs == {"check": False, "stdout": None}
 
 

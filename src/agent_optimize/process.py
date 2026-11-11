@@ -30,8 +30,8 @@ def worker_environment(environment=None):
     return cleaned
 
 
-def run_worker(command, *, timeout=30, environment=None, max_output_bytes=64 * 1024, input_data=None) -> ProcessResult:
-    if timeout <= 0 or max_output_bytes <= 0:
+def run_worker(command, *, timeout=None, environment=None, max_output_bytes=64 * 1024, input_data=None) -> ProcessResult:
+    if (timeout is not None and timeout <= 0) or max_output_bytes <= 0:
         raise ValueError("worker timeout and output limit must be positive")
     try:
         process = subprocess.Popen(

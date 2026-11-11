@@ -4,6 +4,38 @@ Decorate an Awkward computation, run your analysis once through `agent-optimize`
 and let it check whether a compiled replacement is eligible for local reuse.
 Your readable Python function remains the reference and fallback.
 
+## Share a run
+
+Add `--report` before the script or command to write a Markdown account of the
+run in the current directory:
+
+```sh
+agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128
+```
+
+The file is named after the script/command plus a session identifier, and its
+path appears in the terminal and JSON output. It leads with original-versus-saved
+function timings and speedup, then the time and API cost needed to obtain the
+result. It explains saved verification groups, rejected replacements and the split
+between recorded and generated correctness inputs, and shows each saved Python
+reference with its `@optimize` marker and the Numba replacement.
+[Inspect the real q16 sample](examples/q16-report.md), including its complete
+delivered-file command and verified input provenance. Recording still runs the
+analysis once. Timing rows describe individual function verification groups; other
+analysis work is outside that comparison. Compilation is part of first use,
+and first use is already included in the optimization elapsed time.
+
+The JSON `usage_summary` and terminal totals are available without `--report`.
+They include unsuccessful requests, distinguish missing usage from zero and
+retain known partial costs. Cached reads/writes are input subsets and reasoning
+is part of output. Cost estimates retain their rate source/version and use
+OpenAI Standard direct API rates with default cache retention; unknown usage or
+rates leave the total unavailable. Mock runs use no API tokens and cost zero
+in API charges. These estimates exclude invoice adjustments and are not billing
+reconciliation. [Official pricing](https://developers.openai.com/api/docs/pricing)
+and [cache accounting](https://developers.openai.com/api/docs/guides/prompt-caching)
+are the rate/semantics sources.
+
 The default generator is a deterministic **local mock**. It deliberately proposes
 an incorrect loop before responding to feedback with a corrected loop. The
 recording, Numba compilation, independent correctness checks, timing, storage,
@@ -18,7 +50,7 @@ package, a tool installation can use:
 
 ```sh
 uv tool install git+https://github.com/gordonwatts/agent-optimize.git
-agent-optimize run --max-calls 2 examples/q16_ttbar.py --n-files 1
+agent-optimize run --verification-groups 2 examples/q16_ttbar.py --n-files 1
 ```
 
 No `--script` flag is needed on `agent-optimize`. Optimizer options go before the
@@ -88,7 +120,7 @@ Install `pip install -e '.[openai]'`, configure `AGENT_OPTIMIZE_OAI_API_KEY`, an
 select live generation explicitly:
 
 ```text
-agent-optimize run --provider openai --model gpt-6.1-sol --provider-seconds 75 --max-output-tokens 4096 -- python analysis.py
+agent-optimize run --provider openai --model gpt-6.1-sol --max-output-tokens 4096 -- python analysis.py
 ```
 
 The supported models are `gpt-6.1-sol`, `gpt-6.1-terra`, and `gpt-6-luna`.
@@ -125,13 +157,13 @@ usage, budgets, and exact saved evidence identifiers.
 List cases with `python -m benchmarks.compare_models --list`. An offline smoke run:
 
 ```text
-python -m benchmarks.compare_models --provider mock --cases integer_threshold dijet_combinatorics nearest_jet_matching --events 16 --max-proposals 2
+python -m benchmarks.compare_models --provider mock --cases integer_threshold dijet_combinatorics nearest_jet_matching --events 16 --max-attempts 2
 ```
 
 For live comparison, explicitly pass `--provider openai` and repeat `--model`:
 
 ```text
-python -m benchmarks.compare_models --provider openai --model gpt-6-luna --model gpt-6.1-terra --model gpt-6.1-sol --events 1000 --max-proposals 2
+python -m benchmarks.compare_models --provider openai --model gpt-6-luna --model gpt-6.1-terra --model gpt-6.1-sol --events 1000 --max-attempts 2
 ```
 
 Each model/case/repeat gets a fresh artifact root and retains settings, source/input
@@ -224,10 +256,9 @@ reference files; it excludes report bookkeeping and interpreter/reference-functi
 allocations. Copying uses bounded temporary chunks. These bounds do not limit the
 analysis function's own memory use.
 
-Search defaults are three proposals per function shared across input contracts,
-120 seconds per function, 30 seconds per worker capped by remaining time, and
-300 seconds total search time. Host preparation and comparison check the same
-deadline between bounded units of work. Requests are limited to 128 KiB, responses
+Search defaults to three replacement-code attempts per function, shared across
+input contracts. Model requests have a fixed 180-second (three-minute) timeout. Local checking,
+timing and the overall optimization have no time limits. Requests are limited to 128 KiB, responses
 to 64 KiB, and extra-case proposals to eight. The evaluator alone builds additional
 `zeros`, bounded `lengths`, or known-field `boundaries` cases; mandatory cases remain
 in force. Effective limits are printed before the command starts. See

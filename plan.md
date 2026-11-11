@@ -1,33 +1,49 @@
 # First-round implementation plan
 
-## Current project work (November 9, 2026)
+## Current project work (November 10, 2026)
 
-Keep backlog items in GitHub issues. Gordon prefers Typer for Python CLIs.
-Implementation and draft PRs for issues #2 and #3 are authorized. Keep PRs in
-draft until Gordon explicitly approves; do not mark ready, merge or deploy.
+Keep backlog items in GitHub issues and use Typer for Python CLI work. Gordon
+explicitly approved merging existing PRs #4 and #5 on November 10. Both PR bodies
+contain the requested closing references. PR #5 merged as `b210ede` and issue #2
+closed; PR #4 merged as `c9bf189` and issue #3 closed. PR #4's ANSI help-assertion
+failure was corrected and the complete CI matrix passed before merging. PR #5's
+latest complete CI run also passed. Local work was preserved.
 
-- [Issue #3](https://github.com/gordonwatts/agent-optimize/issues/3): Typer
-  migration is in [draft PR #4](https://github.com/gordonwatts/agent-optimize/pull/4).
-  Windows Python 3.13: 383 tests passed, 4 skipped; two opt-in uv tests passed.
-- [Issue #2](https://github.com/gordonwatts/agent-optimize/issues/2): full q16
-  reconstruction is in [draft PR #5](https://github.com/gordonwatts/agent-optimize/pull/5),
-  based on merged PR #1 (`62d3c59`). Generic ordered Cartesian assignment lowering
-  now covers neutrino arithmetic, candidate construction, jet matching and scoring
-  in one compiled boundary. Recording, replay, correctness, persistence and saved
-  dispatch are integrated. Independent pair-assignment tests also exercise reuse.
-  Windows: 387 passed, 3 skipped; Ubuntu WSL2: 386 passed, 4 skipped.
-  The standalone uv workflow passed. CI at `9f9077d` passed all matrix, script
-  and documentation checks. Warm real-data reconstruction measured 38.13× on
-  Windows and 37.57× on Ubuntu, including packing and dispatch. Both fresh-process
-  runs matched all 7,552 values bit for bit. See `docs/evidence/q16-full-reconstruction.json`.
-  Implementation and validation are complete; review remains with Gordon. No
-  technical blocker or outstanding question is known.
+The exact remaining open issue set at dispatch was:
 
-A delivered real ROOT file is available locally under ignored `.agent-optimize/`.
-The fresh-process full comparison matched all 7,552 masses bit for bit. The mean
-remains 1537.14 GeV, outside the physics benchmark's 2477.6205 GeV ±2% target;
-the reason is unresolved. Software preservation does not establish physics validity.
-No extended physics investigation is part of this implementation.
+- [#6](https://github.com/gordonwatts/agent-optimize/issues/6): total usage and
+  estimated API costs, building on existing per-attempt evidence. Add shared
+  per-function/model/run totals, coverage for missing usage, request accounting,
+  versioned pricing provenance and checkpoint-safe aggregation. Include cached
+  reads/writes and avoid counting reasoning output twice.
+- [#7](https://github.com/gordonwatts/agent-optimize/issues/7): a straightforward
+  Markdown report via `--report`, named after the analysis/command. Lead with
+  overall timings, a recorded-batch timing comparison and usage/cost. Show each
+  saved function's frozen Python and Numba code and explain reference fallback.
+  Validate the report on q16 and provide a concrete sample plus a simple command.
+
+Both issues are authorized for implementation, in that dependency order. They
+form one demonstration/reporting change. New PRs must contain `fix #6` / `fix #7`
+and remain draft until Gordon explicitly approves them; approval to implement
+or open a PR does not authorize marking it ready or merging.
+
+Progress: both issues are implemented in [draft PR #8](https://github.com/gordonwatts/agent-optimize/pull/8),
+with `fix #6` and `fix #7`. The real-data q16 sample is
+`docs/examples/q16-report.md`; it shows 2 recordings, 108 correctness cases,
+measured batch timings and both verified source implementations. The simplest
+command was verified in a clean script-owned uv environment:
+`agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128`.
+The Windows full run passed 410 tests (3 skipped); newer focused accounting,
+provider and search checks passed 89 tests (1 skipped). A final full run and
+fresh CI are in progress. No paid API calls are needed. The manager confirmed standing hourly
+portfolio monitoring ACTIVE and owns its lifecycle; no separate schedule was
+created by this project.
+
+The full q16 reconstruction remains bitwise equivalent to the supplied script
+on all 7,552 real-data events, with prior warm measurements of 38.13x on Windows
+and 37.57x on Ubuntu. Its 1537.14 GeV mean still differs from the 2477.6205 GeV
+physics benchmark beyond 2%; software preservation is not physics validation.
+No extended physics investigation is part of the reporting work.
 
 ## Goal and boundaries
 

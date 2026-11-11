@@ -84,7 +84,7 @@ def _run_job(path, *, timeout):
     return result
 
 
-def evaluate_contract(reference_source, graph, contract, cases, workspace: Path, *, candidate_source=None, worker_timeout=30, deadline=None):
+def evaluate_contract(reference_source, graph, contract, cases, workspace: Path, *, candidate_source=None, worker_timeout=None, deadline=None):
     """Keep the frozen reference and mandatory cases outside candidate control.
 
     This records correctness only. It makes no timing, eligibility, persistence,
@@ -132,7 +132,7 @@ def evaluate_contract(reference_source, graph, contract, cases, workspace: Path,
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError("experiment deadline exhausted before worker launch")
-        return min(worker_timeout, remaining)
+        return remaining if worker_timeout is None else min(worker_timeout, remaining)
     reference = _run_job(workspace / "reference-job.json", timeout=remaining_timeout())
     if reference["status"] != "passed":
         summary.update(status="reference_failed", reason="frozen reference worker failed", reference_worker=reference)
@@ -184,7 +184,7 @@ def evaluate_contract(reference_source, graph, contract, cases, workspace: Path,
     return summary
 
 
-def evaluate_session(directory: Path, report: dict, *, worker_timeout=30, timing_provider=None, experiment_timeout=120, search_limits=None, proposer=None, provider=None, api_key=None, dispatch_mode=None):
+def evaluate_session(directory: Path, report: dict, *, timing_provider=None, search_limits=None, proposer=None, provider=None, api_key=None, dispatch_mode=None):
     from .generator import IDENTITY
     from .search import SearchLimits, search_groups
     identity = provider.identity if provider else IDENTITY
@@ -193,18 +193,13 @@ def evaluate_session(directory: Path, report: dict, *, worker_timeout=30, timing
     report["dispatch_mode"] = dispatch_mode
     report["provider"] = identity
 
-    limits = search_limits or SearchLimits(worker_seconds=worker_timeout, function_seconds=experiment_timeout)
+    limits = search_limits or SearchLimits()
     report["search_limits"] = asdict(limits)
-    session_deadline = time.monotonic() + limits.session_seconds
     state = read_json(directory / "session.json")
     for outcome in report["functions"]:
-        deadline = min(time.monotonic() + limits.function_seconds, session_deadline)
+        deadline = None
         outcome["evaluations"] = []
         if report["child_exit_code"] or not outcome["replays"] or any(replay["status"] != "passed" for replay in outcome["replays"]):
-            continue
-        if time.monotonic() >= deadline:
-            outcome["search"] = {"proposals": 0, "stop": "deadline", "provider": identity}
-            outcome["reason"] = "search deadline exhausted; Python remains in use"
             continue
         entry = state["functions"][outcome["function_id"]]
         groups = {}
@@ -246,5 +241,7 @@ def evaluate_session(directory: Path, report: dict, *, worker_timeout=30, timing
             outcome["search"] = {"proposals": len(outcome["evaluations"]), "stop": "deadline", "provider": identity}
             outcome["evaluations"].append({"schema_version": 1, "status": "ineligible", "correctness_only": False, "reason": "experiment deadline exhausted"})
             outcome["reason"] = "experiment deadline exhausted; Python remains in use"
+    from .usage import update_usage
+    update_usage(report)
     write_json(directory / "report.json", report)
     return report

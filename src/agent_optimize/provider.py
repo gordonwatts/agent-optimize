@@ -28,7 +28,7 @@ def contains_credential(value, key):
 class ProviderSettings:
     kind: str = "mock"
     model: str = "gpt-6.1-sol"
-    timeout: float = 30
+    timeout: float = 180
     max_output_tokens: int = 4096
 
     def __post_init__(self):
@@ -45,7 +45,7 @@ class ProviderSettings:
             return dict(IDENTITY)
         return {"kind": "openai", "identity": "openai-responses-structured-v1", "model": self.model,
                 "settings": {"timeout_seconds": self.timeout, "max_output_tokens": self.max_output_tokens,
-                             "max_retries": 0, "store": False}}
+                             "max_retries": 0, "store": False, "service_tier": "default", "cache_write_ttl": "30m (API default)"}}
 
 
 def _dotenv_key(path):

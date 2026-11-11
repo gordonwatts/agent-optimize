@@ -223,7 +223,7 @@ def test_checkpoint_failure_prevents_next_request(tmp_path, monkeypatch, checkpo
         return propose(problem, history)
     with pytest.raises(OSError, match="full disk"):
         run(directory, outcome, report, proposer=provider)
-    assert calls == [1]
+    assert calls == ([] if checkpoint == "report.json" else [1])
 
 
 def test_count_limit_is_per_function_across_contracts(tmp_path, monkeypatch):
@@ -233,7 +233,7 @@ def test_count_limit_is_per_function_across_contracts(tmp_path, monkeypatch):
     assert len(list(directory.rglob("request.json"))) == 3
 
 
-@pytest.mark.parametrize("kwargs", [{"proposals": 0}, {"worker_seconds": float("nan")}, {"function_seconds": -1}, {"session_seconds": float("inf")}, {"response_bytes": True}, {"extra_cases": 33}, {"proposals": 1.5}])
+@pytest.mark.parametrize("kwargs", [{"proposals": 0}, {"response_bytes": True}, {"extra_cases": 33}, {"proposals": 1.5}])
 def test_search_limits_validate_finite_positive_bounds(kwargs):
     with pytest.raises(ValueError):
         search.SearchLimits(**kwargs)
@@ -247,22 +247,6 @@ def test_empty_capture_never_requests_proposal(tmp_path):
     assert result["functions"] == [] and result["search_limits"]["proposals"] == 3
 
 
-def test_total_search_deadline_applies_across_functions(tmp_path, monkeypatch):
-    directory = create_session(tmp_path / "artifacts")
-    Recorder(directory).invoke(integer_ht, (), problem()[3])
-    report = replay_session(directory, 0)
-    report["functions"].append(dict(report["functions"][0]))
-    clock = [100.0]
-    calls = []
-    monkeypatch.setattr(search.time, "monotonic", lambda: clock[0])
-    def provider(problem, history):
-        calls.append(1)
-        clock[0] += 6
-        return propose(problem, history)
-    report = evaluator.evaluate_session(directory, report, proposer=provider, search_limits=search.SearchLimits(session_seconds=5))
-    assert calls == [1]
-    assert report["functions"][0]["evaluations"][0]["status"] == "deadline"
-    assert report["functions"][1]["search"]["proposals"] == 0
 
 
 def test_interrupt_after_real_acceptance_preserves_artifact_and_report(tmp_path):
@@ -281,31 +265,16 @@ def test_interrupt_after_real_acceptance_preserves_artifact_and_report(tmp_path)
     assert len(list(directory.rglob("completed-proposal.json"))) == 1
 
 
-@pytest.mark.parametrize("limit", ["function_seconds", "session_seconds"])
-def test_case_generation_checks_deadline_before_advancing_next_case_or_configuration(tmp_path, monkeypatch, limit):
+def test_session_has_no_function_or_total_time_budget(tmp_path, monkeypatch):
+    from dataclasses import asdict
     directory = create_session(tmp_path / "artifacts")
-    recorder = Recorder(directory)
-    arguments = problem()[3]
-    recorder.invoke(integer_ht, (), arguments)
-    recorder.invoke(integer_ht, (), {**arguments, "threshold": 50})
-    identifier = next(iter(read_json(directory / "session.json")["functions"]))
-    outcome = {"function_id": identifier, "replays": [{"status": "passed"}], "status": "replayed"}
-    report = {"schema_version": 1, "child_exit_code": 0, "functions": [outcome]}
-    clock = [100.0]
-    constructed, configurations = [], []
-    original = evaluator.generate_cases
-    def generate(*args, **kwargs):
-        configurations.append(1)
-        for case in original(*args, **kwargs):
-            constructed.append(case.name)
-            clock[0] += 0.25
-            yield case
-    monkeypatch.setattr(evaluator.time, "monotonic", lambda: clock[0])
-    monkeypatch.setattr(evaluator, "generate_cases", generate)
-    def provider(*args):
-        pytest.fail("expired case preparation must not request a proposal")
-    evaluator.evaluate_session(directory, report, proposer=provider, search_limits=search.SearchLimits(**{limit: 0.5}))
-    assert constructed == ["zero-events", "empty-lists"]
-    assert configurations == [1]
-    assert outcome["search"]["stop"] == "deadline" and outcome["search"]["proposals"] == 0
-    assert read_json(directory / "report.json")["functions"][0]["evaluations"][0]["status"] == "ineligible"
+    Recorder(directory).invoke(integer_ht, (), problem()[3])
+    report = replay_session(directory, 0)
+    report["functions"].append(dict(report["functions"][0]))
+    seen = []
+    def search_without_budget(groups, outcome, directory, report, limits, deadline, **kwargs):
+        seen.append(deadline)
+        assert not any("seconds" in name for name in asdict(limits))
+    monkeypatch.setattr(search, "search_groups", search_without_budget)
+    evaluator.evaluate_session(directory, report)
+    assert seen == [None, None]

@@ -241,3 +241,16 @@ def test_opt_in_live_proposal(tmp_path):
                                                provider=ProviderSettings("openai", model), api_key=key)
     assert failure is None and response["status"] == "proposal"
     assert response["provider_request_count"] == 1
+
+
+def test_default_live_transport_has_fixed_three_minute_limit(tmp_path, monkeypatch):
+    calls = []
+    def worker(command, **kwargs):
+        calls.append(kwargs)
+        assert kwargs["timeout"] == 180
+        assert json.loads(kwargs["input_data"])["settings"]["timeout"] == 180
+        return ProcessResult("timeout", None, "", "")
+    monkeypatch.setattr(search, "run_worker", worker)
+    response, failure = search.request_proposal(request(), tmp_path, search.SearchLimits(), None,
+                                               provider=ProviderSettings("openai"), api_key=SECRET)
+    assert response is None and failure == "provider_timeout" and len(calls) == 1

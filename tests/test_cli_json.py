@@ -44,7 +44,7 @@ def test_json_stream_is_one_result_with_arbitrary_noisy_child_output(tmp_path):
     assert payload["search_limits"]["proposals"] == 3
 
 
-@pytest.mark.parametrize("options,phase", [(["--max-proposals", "0"], "configuration"), (["--worker-seconds", "nan"], "configuration"), (["--unknown-option"], "configuration")])
+@pytest.mark.parametrize("options,phase", [(["--max-attempts", "0"], "configuration"), (["--unknown-option"], "configuration")])
 def test_json_configuration_errors_are_structured(tmp_path, options, phase):
     result, payload = invoke(tmp_path, "raise AssertionError('must not run')", *options)
     assert result.returncode == 2 and payload["status"] == "error"
@@ -158,7 +158,7 @@ raise SystemExit(cli.main())
 def test_json_successful_persistence_and_interruption_keep_real_artifact(tmp_path, interrupted):
     bootstrap = CONTROLLED_BOOTSTRAP.replace("INTERRUPT", repr(interrupted))
     source = SOURCE + "\nprint(ak.to_list(ht(make_events())))\n"
-    result, payload = invoke(tmp_path, source, "--max-proposals", "2" if interrupted else "1", bootstrap=bootstrap)
+    result, payload = invoke(tmp_path, source, "--max-attempts", "2" if interrupted else "1", bootstrap=bootstrap)
     assert result.returncode == (130 if interrupted else 0)
     assert payload["status"] == ("interrupted" if interrupted else "completed")
     evaluation = payload["functions"][0]["evaluations"][0]

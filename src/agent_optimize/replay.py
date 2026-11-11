@@ -7,7 +7,7 @@ from .process import run_worker
 from .store import read_json, write_json
 
 
-def replay_session(directory: Path, child_exit_code: int, *, timeout=30) -> dict:
+def replay_session(directory: Path, child_exit_code: int, *, timeout=None) -> dict:
     state = read_json(directory / "session.json")
     report = {
         "schema_version": 1, "session_id": state["session_id"],
