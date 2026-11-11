@@ -51,11 +51,15 @@ def test_json_configuration_errors_remain_machine_readable(capsys):
     assert result["error"]["phase"] == "configuration"
 
 
-def test_help_and_unknown_option_exit_status(capsys):
+def test_help_and_unknown_option_exit_status(capsys, monkeypatch):
+    # Give Rich enough width to display full option names and their aliases.
+    monkeypatch.setenv("COLUMNS", "160")
     with pytest.raises(SystemExit) as help_exit:
         main(["run", "--help"])
     assert help_exit.value.code == 0
-    assert "--max-calls" in re.sub(r"\[[0-9;]*m", "", capsys.readouterr().out)
+    help_text = re.sub(r"\[[0-9;]*m", "", capsys.readouterr().out)
+    assert "--verification-groups" in help_text and "--max-attempts" in help_text
+    assert "--max-calls" in help_text and "--max-proposals" in help_text
     with pytest.raises(SystemExit) as invalid_exit:
         main(["run", "--unknown-option"])
     assert invalid_exit.value.code == 2
@@ -109,3 +113,20 @@ def test_documented_example_ordinary_and_launched_results_match(tmp_path):
     assert ordinary.returncode == launched.returncode == 0, ordinary.stderr + launched.stderr
     assert ordinary.stdout == launched.stdout == "events=12 total_ht=700.0\n"
     assert [path.name for path in tmp_path.iterdir()] == [".agent-optimize"]
+
+
+@pytest.mark.parametrize("group_flag", ["--verification-groups", "--max-calls"])
+@pytest.mark.parametrize("attempt_flag", ["--max-attempts", "--max-proposals"])
+def test_verification_and_attempt_option_aliases(group_flag, attempt_flag):
+    from agent_optimize.cli import _parse
+    options = _parse(["run", group_flag, "2", attempt_flag, "4", "--", "python", "analysis.py"])
+    assert options.max_calls == 2
+    assert options.max_proposals == 4
+    assert _parse(["run", "--", "python", "analysis.py"]).max_proposals == 3
+
+
+@pytest.mark.parametrize("option", ["--verification-groups", "--max-attempts"])
+def test_new_option_names_reject_zero(option):
+    with pytest.raises(SystemExit) as caught:
+        main(["run", option, "0", "--", sys.executable, "-c", "pass"])
+    assert caught.value.code == 2

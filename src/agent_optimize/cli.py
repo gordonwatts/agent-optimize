@@ -42,8 +42,8 @@ def run(
     artifact_root: Path = typer.Option(Path(".agent-optimize")),
     dispatch_mode: DispatchMode = typer.Option(None),
     max_capture_bytes: int = typer.Option(DEFAULT_CAPTURE_BYTES),
-    max_calls: int = typer.Option(DEFAULT_CALL_LIMIT),
-    max_proposals: int = typer.Option(3),
+    max_calls: int = typer.Option(DEFAULT_CALL_LIMIT, "--verification-groups", "--max-calls", help="Save up to this many real-data verification groups per function for correctness checks and timing. One group is one function call."),
+    max_proposals: int = typer.Option(3, "--max-attempts", "--max-proposals", help="Maximum replacement-code attempts per function. If none passes the correctness and speed checks, keep the original Python function."),
     function_seconds: float = typer.Option(120),
     worker_seconds: float = typer.Option(30),
     search_seconds: float = typer.Option(300),
@@ -154,7 +154,7 @@ def _run(arguments):
     if not command or command[0] != "--" or len(command) == 1:
         raise ConfigurationError("run requires script.py [arguments] or a command after --, for example: run -- python analysis.py")
     if options.max_capture_bytes <= 0 or options.max_calls <= 0:
-        raise ConfigurationError("--max-capture-bytes and --max-calls must be positive")
+        raise ConfigurationError("--max-capture-bytes and --verification-groups must be positive")
     from .search import SearchLimits
     from .provider import ProviderSettings, resolve_api_key
 
@@ -179,9 +179,9 @@ def _run(arguments):
     except (OSError, ValueError) as error:
         return finish(base, "error", 2, error={"phase": "session", "kind": type(error).__name__, "message": f"could not create recording session: {error}"[:500]})
     base.update(session_id=session.name, session_directory=str(session), artifact_root=str(session.parent.parent), captured_bytes=0)
-    print(f"agent-optimize: recording at {session}; limits: {options.max_capture_bytes} bytes, {options.max_calls} attempts/function", file=sys.stderr)
+    print(f"agent-optimize: recording at {session}; limits: {options.max_capture_bytes} bytes, {options.max_calls} verification groups/function", file=sys.stderr)
     print(f"agent-optimize: dispatch mode: {selected_mode}; correctness checks remain enabled during evaluation", file=sys.stderr)
-    print(f"agent-optimize: {provider.kind} search limits: {limits.proposals} proposals/function, {limits.function_seconds:g}s/function, {limits.worker_seconds:g}s/worker, {limits.session_seconds:g}s/session, {limits.request_bytes} request bytes, {limits.response_bytes} response bytes, {limits.extra_cases} extra cases/proposal", file=sys.stderr)
+    print(f"agent-optimize: {provider.kind} search limits: {limits.proposals} attempts/function, {limits.function_seconds:g}s/function, {limits.worker_seconds:g}s/worker, {limits.session_seconds:g}s/session, {limits.request_bytes} request bytes, {limits.response_bytes} response bytes, {limits.extra_cases} extra cases/proposal", file=sys.stderr)
     from .process import worker_environment
     environment = worker_environment()
     environment[SESSION_ENV] = str(session)
@@ -263,7 +263,7 @@ def _show_result(result):
             if evaluation.get("artifact_path"):
                 print(f"    saved manifest: {evaluation['artifact_path']}", file=sys.stderr)
         if outcome.get("search"):
-            print(f"  search stopped: {outcome['search']['stop']}; {outcome['search']['proposals']} proposals", file=sys.stderr)
+            print(f"  search stopped: {outcome['search']['stop']}; {outcome['search']['proposals']} attempts", file=sys.stderr)
     if result.get("markdown_report_path"):
         print(f"agent-optimize: Markdown report: {result['markdown_report_path']}", file=sys.stderr)
     if result.get("report_path"):
@@ -285,7 +285,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             prefix = arguments[:len(arguments) - len(command)]
             json_mode = options.json
             if options.max_capture_bytes <= 0 or options.max_calls <= 0:
-                raise ConfigurationError("--max-capture-bytes and --max-calls must be positive")
+                raise ConfigurationError("--max-capture-bytes and --verification-groups must be positive")
             from .search import SearchLimits
             from .provider import ProviderSettings
             from .modes import dispatch_mode

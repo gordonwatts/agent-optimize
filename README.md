@@ -28,9 +28,17 @@ analysis/command plus a session identifier. The path is printed to stderr and
 included as `markdown_report_path` in JSON. Existing reports are never overwritten.
 The analysis runs once; report generation reads its retained evidence.
 
-The report starts with analysis/optimization elapsed times, usage/cost and a
-recorded-batch timing comparison. Each optimized function shows its frozen Python
-reference and saved Numba code, correctness count and compile/first-use cost.
+`--verification-groups 2` saves up to two real-data groups per function for
+correctness checks and timing; these appear as verification groups 1 and 2 in
+the report. `--max-attempts` limits replacement-code attempts per function and
+defaults to three. The old names `--max-calls` and `--max-proposals` remain aliases.
+
+The report starts with original-versus-replacement function timings and the
+speedup, followed by the elapsed time and API cost needed to obtain the result.
+It explains the saved verification groups, which can each contain many events, and
+distinguishes recorded inputs from generated correctness checks. Each optimized
+function shows its frozen Python reference, a visible `@optimize` marker and
+the saved Numba code. Compilation and first use are included in optimization time.
 Unsupported or unsuccessful functions explain why Python remains in use.
 See the [real q16 sample report](docs/examples/q16-report.md). Generate an offline
 q16 example with:
@@ -39,8 +47,9 @@ q16 example with:
 agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128
 ```
 
-Function timings include replacement dispatch and describe recorded batches;
-they are not whole-analysis speedups. Controller elapsed time excludes uv setup.
+Function timings include the overhead of calling the replacement through
+`@optimize` and describe the saved verification groups. Other analysis work is outside
+that comparison. Total elapsed time excludes Python environment preparation.
 Controlled test timings are labeled rather than presented as measurements.
 If an explicitly requested report cannot be written, the run reports an error
 (exit 2 unless the analysis already failed with its own nonzero status).
@@ -70,7 +79,7 @@ With uv on PATH, pass a Python script directly to resolve its inline dependencie
 and Python requirement before recording:
 
 ```text
-agent-optimize run --max-calls 2 examples/q16_ttbar.py --n-files 1
+agent-optimize run --verification-groups 2 examples/q16_ttbar.py --n-files 1
 ```
 
 Optimizer options go before the script; all following arguments belong to the
@@ -427,7 +436,7 @@ and metadata. Output overflow discards the partial capture. Observed input
 mutation also discards it. These controls are available before `--`:
 
 ```text
-agent-optimize run --artifact-root "artifacts with spaces" --max-capture-bytes 1048576 --max-calls 2 -- python analysis.py
+agent-optimize run --artifact-root "artifacts with spaces" --max-capture-bytes 1048576 --verification-groups 2 -- python analysis.py
 ```
 
 For an ordinary run with a custom artifact root, set

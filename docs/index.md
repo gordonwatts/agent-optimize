@@ -14,11 +14,16 @@ agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128
 ```
 
 The file is named after the script/command plus a session identifier, and its
-path appears in the terminal and JSON output. It leads with elapsed times,
-API usage/cost and measured function comparisons, then shows each saved Python
-reference and Numba replacement. [Inspect the real q16 sample](examples/q16-report.md).
-Recording still runs the analysis once. Timings compare recorded function calls,
-not the whole script; compile/first-use costs are separate.
+path appears in the terminal and JSON output. It leads with original-versus-saved
+function timings and speedup, then the time and API cost needed to obtain the
+result. It explains saved verification groups, rejected replacements and the split
+between recorded and generated correctness inputs, and shows each saved Python
+reference with its `@optimize` marker and the Numba replacement.
+[Inspect the real q16 sample](examples/q16-report.md), including its complete
+delivered-file command and verified input provenance. Recording still runs the
+analysis once. Timing rows describe individual function verification groups; other
+analysis work is outside that comparison. Compilation is part of first use,
+and first use is already included in the optimization elapsed time.
 
 The JSON `usage_summary` and terminal totals are available without `--report`.
 They include unsuccessful requests, distinguish missing usage from zero and
@@ -45,7 +50,7 @@ package, a tool installation can use:
 
 ```sh
 uv tool install git+https://github.com/gordonwatts/agent-optimize.git
-agent-optimize run --max-calls 2 examples/q16_ttbar.py --n-files 1
+agent-optimize run --verification-groups 2 examples/q16_ttbar.py --n-files 1
 ```
 
 No `--script` flag is needed on `agent-optimize`. Optimizer options go before the

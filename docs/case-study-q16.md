@@ -50,7 +50,7 @@ Install the generic CLI once, with uv available on PATH:
 ```bash
 uv tool install git+https://github.com/gordonwatts/agent-optimize.git
 agent-optimize run \
-  --artifact-root .agent-optimize/q16 --max-calls 2 \
+  --artifact-root .agent-optimize/q16 --verification-groups 2 \
   --worker-seconds 60 --function-seconds 240 --search-seconds 300 \
   examples/q16_ttbar.py --n-files 1 --output-dir plots/q16
 ```
@@ -68,9 +68,10 @@ library pin is honored; no q16-specific installation or active-environment
 modification is needed. The [user guide](index.md) describes current metadata
 support and the explicit command form for already prepared environments.
 
-The two recorded calls are complete batches, each containing up to 128 selected
-events. Capture and search budgets still apply. Later batches execute the
-reference during recording without additional captures.
+Each recorded call contains the selected events from one group of up to 128
+ROOT entries. The number of selected events varies between groups. Capture and
+search budgets still apply. Later groups execute the original Python function
+during recording without saving additional example inputs.
 
 The deterministic local provider proposes a Numba loop, checks the frozen
 reference and mandatory cases, and measures ordinary dispatch before deciding
@@ -130,12 +131,32 @@ quarantine, and reference fallback remain part of the existing workflow.
 `agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128`
 generates a Markdown summary with timings, usage/cost, correctness results and
 the frozen Python and saved Numba source. The analysis executes once.
-[This real-data sample](examples/q16-report.md) was generated from the cached
-7,552-event q16 file using the local mock provider, with two recorded calls and
-108 correctness cases for the accepted proposal. Its comparison table is for
-those recorded batches; the full-reconstruction measurements below are separate.
-It reports no model calls or API charges. Reference agreement does not establish
-physics validity; the mean discrepancy described below remains unresolved.
+[This real-data sample](examples/q16-report.md) leads with the function speedup,
+then the elapsed time and API cost required to obtain it. It processes all
+30,000 entries of one cached delivered file, yielding 7,552 selected events in
+235 calls. Its two timing groups contain 24 selected events each, with 131 and
+142 jets. Their saved input buffers were matched exactly to the first two
+selected groups read from the cached ROOT file. The groups contain different
+events; equal event counts do not imply repeated data.
+
+The accepted replacement passed 108 checks: 2 recorded inputs plus 106
+generated inputs (104 required edge/boundary inputs, one public synthetic
+example and one proposed by the generator). A check tests one function input,
+which may contain many events. The first replacement failed correctness checks;
+the later 233 analysis calls still ran, without saving additional inputs.
+Only `reconstruct_events` was called; its boundary includes both candidate
+construction and scoring. The separately decorated `select_ttbar_mass` helper
+was unused, which explains the report's one-function count.
+
+The sample uses a deterministic local generator, so it reports zero model API
+tokens and charges for this run. The original function and compiled replacement
+are genuinely measured; code generation is a local demonstration of the search
+and feedback process. Model-based searches have their own API cost. The sample
+includes a full delivered-file command; `--n-files 0`, without `--input-file`,
+instead requests the entire ServiceX dataset. Its timing table covers only the
+two recorded function inputs; the full-reconstruction measurements below are
+separate. Reference agreement does not establish physics validity; the mean
+discrepancy described below remains unresolved.
 
 ### Full reconstruction (November 9, 2026)
 
@@ -228,7 +249,7 @@ For an offline execution check:
 
 ```bash
 agent-optimize run \
-  --artifact-root .agent-optimize/q16-synthetic --max-calls 2 \
+  --artifact-root .agent-optimize/q16-synthetic --verification-groups 2 \
   examples/q16_ttbar.py --synthetic-events 256 \
   --output-dir plots/q16-synthetic
 ```

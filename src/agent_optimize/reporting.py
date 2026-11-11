@@ -1,6 +1,6 @@
 """A shareable Markdown account of one run, built from evaluator-owned evidence."""
 
-from collections import Counter
+import ast
 import hashlib
 import html
 import json
@@ -78,24 +78,77 @@ def _timing_rows(evaluation):
     return rows
 
 
+def _reference_listing(source):
+    """Restore the opt-in marker for readers, without changing frozen evidence."""
+    tree = ast.parse(source)
+    function = next(node for node in tree.body if isinstance(node, ast.FunctionDef))
+    lines = source.splitlines()
+    lines.insert(function.lineno - 1, "@optimize")
+    return "from agent_optimize import optimize\n" + "\n".join(lines)
+
+
+def _correctness(evaluation):
+    count = evaluation.get("case_count", "?")
+    checks = evaluation.get("checks", [])
+    lines = [f"**The chosen replacement passed all {count} correctness checks.** It also passed the speed and compatibility requirements.", ""]
+    if checks and len(checks) == count and all(c.get("status") == "passed" for c in checks):
+        recorded_ids = set(evaluation.get("recorded_case_ids", []))
+        recorded = [c for c in checks if c["case_id"] in recorded_ids]
+        generated = [c for c in checks if c["case_id"] not in recorded_ids]
+        measured = {row[0]["case_id"]: (number, row[0].get("events"))
+                    for number, row in enumerate(_timing_rows(evaluation), 1)}
+        lines += ["Each correctness check compares the original function and the replacement on one complete verification group, including every event in that group.", "",
+                  "| Verification groups checked | Number of checks | Result |", "| --- | ---: | --- |"]
+        for check in recorded:
+            group = measured.get(check["case_id"])
+            label = f"Verification group {group[0]} from the speedup table" if group else "Saved verification group"
+            if group and isinstance(group[1], int):
+                label += f" ({group[1]} events)"
+            lines.append(f"| {label} | 1 | Passed |")
+        lines += [f"| Synthetic test groups for edge cases | {len(generated)} | Passed |",
+                  f"| **Total** | **{count}** | **Passed** |", "",
+                  f"The {len(recorded)} real-data verification groups count as {len(recorded)} checks, regardless of how many events each contains. The other {len(generated)} checks use synthetic test groups for edge-case testing.", ""]
+    else:
+        lines += ["Each correctness check compares the original function and the replacement on one complete verification group, including every event in that group. A detailed breakdown of saved and generated verification groups is unavailable in this result.", ""]
+    return lines
+
+
 def render_report(result, name):
     functions = result.get("functions", [])
     optimized = sum(bool(_accepted(f)) for f in functions)
     status_label = "Analysis failed" if result["status"] == "child_failed" else result["status"].replace("_", " ").capitalize()
     lines = [f"# Optimization report: {_text(name)}", "", f"**Result:** {_text(status_label)}. **{optimized} of {len(functions)} functions optimized.**", ""]
+    lines += ["## Function speedup", "", "Each row is a different saved verification group. The Events column gives the number of events in that group. The original function and replacement are timed using the same events, and repeated measurements reuse those events.", "",
+              "| Function / verification group | Events | Original Python | Numba replacement | Conservative speedup |", "| --- | ---: | ---: | ---: | ---: |"]
+    rows = 0
+    for function in functions:
+        fname = function["identity"]["qualified_name"]
+        for evaluation in _accepted(function):
+            for number, (recording, reference, candidate, ratio) in enumerate(_timing_rows(evaluation), 1):
+                rows += 1
+                lines.append(f"| {_text(fname)} / verification group {number} | {recording.get('events', '?')} | {reference:.3f} ms | {candidate:.3f} ms | {ratio:.2f}x |")
+    if rows:
+        lines += ["", "Times are medians of repeated measurements after warm-up, including the overhead of calling the replacement through `@optimize`. The conservative speedup is the lowest ratio across timing rounds for each verification group, so it can differ from the ratio of the displayed medians. These are function timings; reading data, plotting and other analysis work are outside this comparison."]
+    else:
+        lines += ["", "No eligible replacement with measured timing evidence was saved."]
+    lines += ["", "## Time and API cost to obtain the result", "", "| Phase | Elapsed time |", "| --- | ---: |"]
     timings = result.get("run_timing", {})
-    lines += ["## Run at a glance", "", "| Phase | Elapsed time |", "| --- | ---: |"]
-    for key, label in (("analysis_seconds", "Analysis (recording run)"), ("optimization_seconds", "Replay, correctness and optimization"), ("controller_seconds", "Controller total")):
+    for key, label in (("analysis_seconds", "Run analysis once and save verification groups"), ("optimization_seconds", "Generate, check, compile and time replacements"), ("controller_seconds", "Total elapsed time")):
         value = timings.get(key)
         lines.append(f"| {label} | {value:.3f} s |" if isinstance(value, (int, float)) else f"| {label} | Unavailable |")
-    lines += ["", "Controller timings exclude uv environment preparation. The analysis executes once during recording.", "", usage_line(result["usage_summary"]), ""]
+    lines += ["", "The total covers the analysis and optimization work, plus coordination overhead. Preparing the Python environment is excluded. The analysis executes once; subsequent checks rerun only the saved function inputs.", ""]
+    for function in functions:
+        for evaluation in _accepted(function):
+            timing = evaluation.get("timing", {})
+            if timing.get("mode") == "measured" and timing.get("status") == "passed":
+                lines += [f"For {_text(function['identity']['qualified_name'])}, compilation took {timing.get('compilation_ns', 0) / 1e6:.3f} ms within the first replacement call of {timing.get('first_use_ns', 0) / 1e6:.3f} ms. That first call is included in the optimization phase above; do not add it or compilation again to the total. The speedup table uses later, warm calls.", ""]
+    lines += [usage_line(result["usage_summary"]), ""]
     summary = result["usage_summary"]
-    if summary["attempts"]:
-        lines += [f"Provider attempts: {summary['attempts']}. HTTP requests: {summary['requests']['total'] if summary['requests']['total'] is not None else 'total unavailable'}.", ""]
-    if summary.get("models") and all(m["provider"] == "mock" for m in summary["models"]):
-        lines += ["Generator: deterministic local mock. No model calls were made.", ""]
-    if summary.get("models"):
-        lines += ["| Provider / model | Reported tokens | Estimated API cost |", "| --- | ---: | ---: |"]
+    local_only = summary.get("models") and all(m["provider"] == "mock" for m in summary["models"])
+    if local_only:
+        lines += ["This run used a deterministic local code generator (the mock backend). It made no model API calls, which explains the zero tokens and zero API cost for this run. Searches using a model have their own token usage and API costs.", ""]
+    elif summary.get("models"):
+        lines += ["| Code generator / model | Reported tokens | Estimated API cost |", "| --- | ---: | ---: |"]
         for model in summary["models"]:
             tokens = model["tokens"]["total_tokens"]
             known = " (partial)" if not model["coverage"]["total_tokens"]["complete"] else ""
@@ -104,52 +157,44 @@ def render_report(result, name):
         lines.append("")
     if result.get("error"):
         lines += ["**Run diagnostic:** " + _text(result["error"]["message"]), ""]
-    lines += ["## Timing comparison", "", "Measurements below compare function calls on recorded batches, including ordinary dispatch. They are not whole-analysis speedups. Correctness means agreement with the Python reference, not independent validation of the underlying analysis.", "",
-              "| Function / batch | Events | Python reference | Replacement | Minimum batch speedup |", "| --- | ---: | ---: | ---: | ---: |"]
-    rows = 0
-    for function in functions:
-        fname = function["identity"]["qualified_name"]
-        for evaluation in _accepted(function):
-            for recording, reference, candidate, ratio in _timing_rows(evaluation):
-                rows += 1
-                lines.append(f"| {_text(fname)} / {_text(recording['case_id'])} | {recording.get('events', '?')} | {reference:.3f} ms | {candidate:.3f} ms | {ratio:.2f}x |")
-    if not rows:
-        lines += ["", "No eligible replacement with measured timing evidence was saved."]
-    lines += ["", "## Functions", ""]
+    lines += ["## Checks and saved code", "", "Correctness here means exact agreement with the original Python function, including floating-point bit patterns.", ""]
     if not functions:
         lines += ["No decorated function calls were recorded.", ""]
     prices = {}
     for function in functions:
-        lines += [f"### {_text(function['identity']['qualified_name'])}", "", f"**Status:** {_text(function['status'])}. {_text(function['reason'])}", "", f"Recorded calls: {function.get('captured_calls', 0)}. Proposals attempted: {len(function.get('evaluations', []))}.", ""]
-        outcomes = Counter(e.get("status", "unknown").replace("_", " ") for e in function.get("evaluations", []))
-        if outcomes:
-            lines += ["Attempt outcomes: " + ", ".join(f"{count} {_text(status)}" for status, count in outcomes.items()) + ".", ""]
-        for skip in function.get("skipped", {}).values():
-            lines += [f"Not recorded: {skip['count']} calls. {_text(skip['diagnostic'])}. These calls still used the Python reference.", ""]
+        accepted = _accepted(function)
+        iterations = len(function.get("evaluations", []))
+        status = f"The chosen code passed all required checks ({iterations} attempts to reach the final code)." if accepted else "No replacement was saved; the original Python function remains in use."
+        saved = function.get("captured_calls", 0)
+        total_calls = saved + sum(skip.get("count", 0) for skip in function.get("skipped", {}).values())
+        lines += [f"### {_text(function['identity']['qualified_name'])}", "", status, "",
+                  f"Saved {saved} verification groups (from {total_calls} total function calls).", ""]
         for evaluation in function.get("evaluations", []):
             pricing = evaluation.get("provider_cost", {}).get("pricing")
             if pricing:
                 prices[(pricing["version"], pricing["model"])] = pricing
-        accepted = _accepted(function)
         if not accepted:
-            lines += ["No replacement saved; the Python reference remains in use.", ""]
+            if function.get("reason"):
+                lines += ["**Details:** " + _text(function["reason"]), ""]
             continue
         for number, evaluation in enumerate(accepted, 1):
-            lines += [f"#### Saved replacement {number}", "", f"Correctness: **{evaluation.get('case_count', '?')} cases passed**. Timing and compatibility gates passed.", ""]
+            if len(accepted) > 1:
+                lines += [f"#### Chosen replacement for input layout {number}", ""]
+            lines += _correctness(evaluation)
             timing = evaluation.get("timing", {})
-            if timing.get("mode") == "measured":
-                lines += [f"Compilation: {timing.get('compilation_ns', 0) / 1e6:.3f} ms. First replacement use: {timing.get('first_use_ns', 0) / 1e6:.3f} ms. These are separate from warm measurements.", ""]
-            else:
+            if timing.get("mode") != "measured":
                 lines += ["Timing evidence is a controlled test fixture; it is not a measured performance claim.", ""]
-            for kind, title in (("reference", "Python reference"), ("candidate", "Numba replacement")):
+            for kind, title in (("reference", "Original Python function"), ("candidate", "Numba replacement")):
                 source = _source(evaluation, kind)
-                lines += [f"**{title}**", "", _fence(source) if source is not None else "Verified source is unavailable in the retained workspace.", ""]
+                lines += [f"**{title}**", ""]
+                if source is not None and kind == "reference":
+                    source = _reference_listing(source)
+                lines += [_fence(source) if source is not None else "Verified source is unavailable in the retained workspace.", ""]
     if prices:
         lines += ["## Cost estimate basis", "", "Costs are estimates of agent-optimize's API requests, not a reconciled invoice. Reasoning tokens are included in output; cache reads/writes are subsets of input. Missing usage/rates leave the total unavailable.", ""]
         for pricing in prices.values():
             lines += [f"- {_text(pricing['model'])}: {_text(pricing['version'])}, verified {_text(pricing['verified_on'])}. {_text(pricing['scope'])}. [Pricing source]({pricing['source']})."]
         lines.append("")
-    lines += ["## Next step", "", _text(result["next_action"]), ""]
     return "\n".join(lines)
 
 

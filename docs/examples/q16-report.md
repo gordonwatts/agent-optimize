@@ -2,60 +2,75 @@
 
 **Result:** Completed. **1 of 1 functions optimized.**
 
-## Run at a glance
+This demonstration processed the complete delivered file: 30,000 entries, yielding 7,552 selected events. Verification groups 1 and 2 contain different events, with 24 events in each group. The function includes both reconstruction and scoring.
+
+To run over the complete delivered file, use this command in the report branch's prepared project environment:
+
+```sh
+agent-optimize run --report --verification-groups 2 examples/q16_ttbar.py --input-file .agent-optimize/q16-delivered.root
+```
+
+`--verification-groups 2` saves up to two groups of real events for correctness checks and timing. `--max-attempts` allows three replacement-code attempts by default, so it is omitted from this command. This demonstration used that default. To request every file from ServiceX instead, replace `--input-file .agent-optimize/q16-delivered.root` with `--n-files 0`.
+
+## Function speedup
+
+Each row is a different saved verification group. The Events column gives the number of events in that group. The original function and replacement are timed using the same events, and repeated measurements reuse those events.
+
+| Function / verification group | Events | Original Python | Numba replacement | Conservative speedup |
+| --- | ---: | ---: | ---: | ---: |
+| reconstruct\_events / verification group 1 | 24 | 24.740 ms | 0.173 ms | 139.45x |
+| reconstruct\_events / verification group 2 | 24 | 28.123 ms | 0.159 ms | 162.83x |
+
+Times are medians of repeated measurements after warm-up, including the overhead of calling the replacement through `@optimize`. The conservative speedup is the lowest ratio across timing rounds for each verification group, so it can differ from the ratio of the displayed medians. These are function timings; reading data, plotting and other analysis work are outside this comparison.
+
+## Time and API cost to obtain the result
 
 | Phase | Elapsed time |
 | --- | ---: |
-| Analysis (recording run) | 10.570 s |
-| Replay, correctness and optimization | 30.652 s |
-| Controller total | 41.719 s |
+| Run analysis once and save verification groups | 11.714 s |
+| Generate, check, compile and time replacements | 50.923 s |
+| Total elapsed time | 63.114 s |
 
-Controller timings exclude uv environment preparation. The analysis executes once during recording.
+The total covers the analysis and optimization work, plus coordination overhead. Preparing the Python environment is excluded. The analysis executes once; subsequent checks rerun only the saved function inputs.
+
+For reconstruct\_events, compilation took 3995.532 ms within the first replacement call of 4009.471 ms. That first call is included in the optimization phase above; do not add it or compilation again to the total. The speedup table uses later, warm calls.
 
 API usage: 0 tokens; cost USD 0 (no API requests).
 
-Provider attempts: 2. HTTP requests: 0.
+This run used a deterministic local code generator (the mock backend). It made no model API calls, which explains the zero tokens and zero API cost for this run. Searches using a model have their own token usage and API costs.
 
-Generator: deterministic local mock. No model calls were made.
+## Checks and saved code
 
-| Provider / model | Reported tokens | Estimated API cost |
-| --- | ---: | ---: |
-| mock / none | 0 | USD 0 |
-
-## Timing comparison
-
-Measurements below compare function calls on recorded batches, including ordinary dispatch. They are not whole-analysis speedups. Correctness means agreement with the Python reference, not independent validation of the underlying analysis.
-
-| Function / batch | Events | Python reference | Replacement | Minimum batch speedup |
-| --- | ---: | ---: | ---: | ---: |
-| reconstruct\_events / case-000 | 24 | 24.639 ms | 0.174 ms | 137.87x |
-| reconstruct\_events / case-001 | 24 | 23.921 ms | 0.149 ms | 154.25x |
-
-## Functions
+Correctness here means exact agreement with the original Python function, including floating-point bit patterns.
 
 ### reconstruct\_events
 
-**Status:** optimized. eligible fast implementation saved; run the script normally to reuse it
+The chosen code passed all required checks (3 attempts to reach the final code).
 
-Recorded calls: 2. Proposals attempted: 2.
+Saved 2 verification groups (from 235 total function calls).
 
-Attempt outcomes: 1 rejected, 1 optimized.
+**The chosen replacement passed all 108 correctness checks.** It also passed the speed and compatibility requirements.
 
-Not recorded: 233 calls. per-function capture-attempt limit reached before buffer copying. These calls still used the Python reference.
+Each correctness check compares the original function and the replacement on one complete verification group, including every event in that group.
 
-#### Saved replacement 1
+| Verification groups checked | Number of checks | Result |
+| --- | ---: | --- |
+| Verification group 1 from the speedup table (24 events) | 1 | Passed |
+| Verification group 2 from the speedup table (24 events) | 1 | Passed |
+| Synthetic test groups for edge cases | 106 | Passed |
+| **Total** | **108** | **Passed** |
 
-Correctness: **108 cases passed**. Timing and compatibility gates passed.
+The 2 real-data verification groups count as 2 checks, regardless of how many events each contains. The other 106 checks use synthetic test groups for edge-case testing.
 
-Compilation: 3805.181 ms. First replacement use: 3817.745 ms. These are separate from warm measurements.
-
-**Python reference**
+**Original Python function**
 
 ```python
+from agent_optimize import optimize
 MTOP = 172.5
 MW = 80.4
 import awkward as ak
 import numpy as np
+@optimize
 def reconstruct_events(events):
     """Reconstruct via ordered distinct jet assignments and first-minimum scoring."""
     jets = events.jets
@@ -249,7 +264,3 @@ def kernel(offsets, columns, scalars):
                                         output[event] = np.float64(0) + v_combined
     return output
 ```
-
-## Next step
-
-Run the script normally to reuse the saved fast-mode implementations.

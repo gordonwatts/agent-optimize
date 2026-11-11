@@ -18,6 +18,9 @@ def test_report_shows_real_frozen_source_and_labels_controlled_evidence(accepted
     result = _finish(report, "completed", 0)
     text = render_report(result, "analysis")
     assert "def ht(" in text and "def kernel(" in text
+    assert "@optimize\ndef ht(" in text
+    assert "from agent_optimize import optimize" in text
+    assert "restored for display" not in text
     assert "controlled test fixture" in text
     assert "No eligible replacement with measured timing" in text
     assert "2.00x" not in text
@@ -44,6 +47,49 @@ def test_markdown_fences_hash_validation_and_partial_usage(tmp_path):
     assert "THIS FILE" not in text and "Verified source is unavailable" in text
     assert "20 known (partial)" in text and "unavailable total" in text
     assert "<script>" not in text
+
+
+def test_report_explains_measured_inputs_effort_and_checks_without_internal_counters():
+    recorded = [{"case_id": f"case-{i:03d}", "name": f"recording-{i}", "status": "passed"} for i in range(2)]
+    generated = [{"case_id": "edge", "name": "empty-lists", "status": "passed"},
+                 {"case_id": "public", "name": "public-synthetic", "status": "passed"},
+                 {"case_id": "extra", "name": "provider-extra-0", "status": "passed"}]
+    accepted = {"status": "optimized", "case_count": 5, "recorded_case_ids": [c["case_id"] for c in recorded],
+                "checks": recorded + generated, "generator": {"kind": "mock"}, "provider_request_count": 0,
+                "timing": {"mode": "measured", "status": "passed", "compilation_ns": 2_000_000,
+                           "first_use_ns": 3_000_000, "recordings": [
+                               {"case_id": c["case_id"], "events": 24, "batches": [
+                                   {"reference_ns": [10_000_000, 12_000_000], "candidate_ns": [1_000_000, 1_200_000]},
+                                   {"reference_ns": [20_000_000], "candidate_ns": [1_000_000]}]}
+                               for c in recorded]}}
+    rejected = {"status": "rejected", "checks": [{"status": "failed"}], "generator": {"kind": "mock"}, "provider_request_count": 0}
+    result = {"status": "completed", "run_timing": {"analysis_seconds": 1, "optimization_seconds": 2, "controller_seconds": 3.1},
+              "functions": [{"identity": {"qualified_name": "reconstruct_events"}, "status": "optimized", "captured_calls": 2,
+                             "evaluations": [rejected, accepted], "skipped": {"call_limit": {"count": 233}}}]}
+    result["usage_summary"] = summarize_usage(result)
+    text = render_report(result, "q16")
+    assert text.index("## Function speedup") < text.index("## Time and API cost") < text.index("## Checks and saved code")
+    assert "1 of 1 functions optimized" in text and "The count includes" not in text
+    assert "verification group 1 | 24" in text and "verification group 2 | 24" in text and "case-000" not in text
+    assert "10.00x" in text and "15.00x" not in text  # Lowest round ratio, not the ratio of displayed medians.
+    assert "Verification group 1 from the speedup table (24 events) | 1 | Passed" in text
+    assert "Verification group 2 from the speedup table (24 events) | 1 | Passed" in text
+    assert "Synthetic test groups for edge cases | 3 | Passed" in text
+    assert "**Total** | **5**" in text
+    assert "Saved 2 verification groups" in text and "Saved example inputs from" not in text
+    assert "#### Saved replacement" not in text
+    assert "2 attempts to reach the final code" in text
+    assert "Generated inputs comprise" not in text
+    assert "independently validate" not in text
+    assert "Numba replacement | Conservative speedup" in text
+    assert "Replacement outcomes:" not in text
+    assert "rejected" not in text
+    assert "Saved 2 verification groups (from 235 total function calls)" in text
+    assert "Another 233" not in text
+    assert "compilation took 2.000 ms within the first replacement call of 3.000 ms" in text
+    assert "included in the optimization phase" in text
+    assert "deterministic local code generator" in text and "Searches using a model have their own" in text
+    assert all(word not in text for word in ("HTTP", "Provider attempts", "dispatch", "Controller", "## Next step"))
 
 
 @pytest.mark.parametrize("failure", [False, True])
