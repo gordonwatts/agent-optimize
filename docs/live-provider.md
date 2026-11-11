@@ -30,7 +30,11 @@ Requests include the frozen reference source (including its literal constants),
 operation graph, type/schema contract, interface constraints, fixed synthetic
 examples with zero-valued fields and scalar one, and prior candidate source plus
 allowlisted evaluator feedback. Captured input buffers, scalar values, recording
-identifiers, raw exceptions, and private correctness cases are never included.
+identifiers, runtime exceptions, and private correctness cases are never included.
+Candidate compiler diagnostics are included with paths and source locations,
+without terminal styling, up to 24 KiB of JSON text; source validation messages
+are also retained. The model therefore receives the actual code failure rather
+than a generic correctness-failure label.
 `--max-request-bytes` bounds the serialized local problem/history envelope,
 including provider identity; it does not measure the full HTTP request, which
 also contains fixed instructions, the schema, and SDK framing.

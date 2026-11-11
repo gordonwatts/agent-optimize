@@ -296,3 +296,21 @@ two nonfinite edge-case checks; the third still differed from the original
 function on required tests. No Numba function was accepted, so no Numba speedup
 is claimed. The script retains Python. This trial verifies live usage/cost
 reporting but does not establish successful model-generated optimization of q16.
+
+
+### Ten attempts and compiler-feedback diagnosis
+
+The [first ten-attempt report](examples/q16-live-ten-before-compiler-feedback.md)
+records 114,482 input tokens and 23,962 output tokens (138,444 total), with a
+complete frozen API estimate of USD 0.5122428. No Numba function was accepted.
+Four attempts failed during compilation; several repeated the same unsupported
+array operation. The provider history contained only a general correctness-failure
+message, so the model did not receive the compiler's explanation.
+
+The feedback pipeline now sends candidate compiler diagnostics, including paths
+and source locations, after removing terminal styling. Diagnostics are bounded
+to 24 KiB of encoded JSON with an explicit truncation notice. Source-validation
+messages are also preserved. Recorded inputs, case identifiers and runtime worker
+exceptions are not forwarded. An offline end-to-end test deliberately causes a
+real Numba compilation error and verifies that its diagnostic reaches the next
+proposal, which is then corrected and accepted.

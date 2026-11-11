@@ -12,6 +12,7 @@ import numpy as np
 
 from .cases import TestCase, build_schema_array, generate_cases
 from .generator import IDENTITY
+from .diagnostics import code_diagnostic
 from .process import run_worker
 from .provider import contains_credential
 from .store import json_bytes, read_json, write_json
@@ -168,10 +169,19 @@ def request_proposal(request, path, limits, deadline, proposer=None, *, provider
 
 
 def feedback(evaluation, diagnostics, public_example=None):
-    """An allowlist: no worker exceptions, recording IDs, sizes, or values."""
+    """Send code diagnostics, not runtime errors or recorded input evidence."""
     status = evaluation["status"]
     result = {"status": status, "diagnostics": diagnostics}
-    if evaluation.get("correctness_status", status) == "rejected":
+    worker = evaluation.get("candidate_worker", {})
+    compiler = worker.get("compiler_diagnostic")
+    validation = evaluation.get("validation_diagnostic")
+    if worker.get("phase") == "compilation" and isinstance(compiler, str) and compiler:
+        result.update(phase="compilation", diagnostic="Numba could not compile the proposed code. Correct it using the compiler diagnostic.",
+                      compiler_diagnostic=code_diagnostic(compiler))
+    elif status == "invalid_source" and isinstance(validation, str) and validation:
+        result.update(phase="source_validation", diagnostic="The proposed code failed source validation. Correct it using the validation diagnostic.",
+                      validation_diagnostic=code_diagnostic(validation))
+    elif evaluation.get("correctness_status", status) == "rejected":
         result["diagnostic"] = "candidate failed independent correctness checks; preserve exact reduction semantics and all events"
     elif status in ("ineligible", "optimized"):
         result["diagnostic"] = "correctness passed; eligible implementation saved" if status == "optimized" else "candidate did not satisfy timing eligibility"
@@ -243,8 +253,9 @@ def search_groups(groups, outcome, directory, report, limits, deadline, *, propo
                 proposed = proposed[:room]
             try:
                 validate_reusable_source(response["source"])
-            except (ValueError, SyntaxError, RecursionError):
-                evaluation.update(status="invalid_source", reason="candidate source does not satisfy the fixed computation interface")
+            except (ValueError, SyntaxError, RecursionError) as error:
+                evaluation.update(status="invalid_source", reason="candidate source does not satisfy the fixed computation interface",
+                                  validation_diagnostic=code_diagnostic(f"{type(error).__name__}: {error}"))
             else:
                 try:
                     public_case = TestCase("public-synthetic", public_arguments(group["contract"]))

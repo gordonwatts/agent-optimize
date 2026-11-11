@@ -532,8 +532,11 @@ Search defaults to a deterministic local mock, with no API key, SDK, or network
 calls. It proposes an intentionally wrong loop first, then a corrected loop after feedback.
 The evaluator owns the reference, mandatory tests, timing, and acceptance. Provider
 requests contain source, graph, schema, signature, constraints, independent synthetic
-examples, and sanitized diagnostics. Recorded arrays, scalars, worker exceptions,
-and recording-derived counterexamples never enter provider requests or feedback.
+examples, and sanitized diagnostics. Candidate compilation failures pass the compiler diagnostic, including paths
+and source locations, back to the model (bounded to 24 KiB of JSON text). Source
+validation failures likewise preserve the validator message. Recorded arrays,
+scalars, runtime worker exceptions and recording-derived counterexamples remain
+local.
 Local request/response files are retained alongside each proposal's evaluation.
 
 The default is three replacement-code attempts per function, shared across its

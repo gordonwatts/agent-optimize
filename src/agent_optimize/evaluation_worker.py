@@ -8,6 +8,7 @@ import numpy as np
 
 from .candidate import adapt_inputs, compile_kernel, contract_from_dict, wrap_output
 from .compatibility import environment_signature
+from .diagnostics import code_diagnostic
 from .experiment import validate_frozen_source
 from .serialization import load_value, plan_value, write_value
 from .store import read_json, write_json
@@ -57,6 +58,8 @@ def evaluate_job(job_path: Path):
                 "phase": "compilation" if type(error).__module__.startswith("numba") else "execution",
                 "case_id": case["id"], "case_name": case["name"],
                 "reason": f"{type(error).__name__}: {str(error)[:500]}", "outputs": outputs,
+                **({"compiler_diagnostic": code_diagnostic(f"{type(error).__name__}: {error}")}
+                   if job["kind"] == "candidate" and type(error).__module__.startswith("numba") else {}),
             }
     result = {"schema_version": 1, "status": "passed", "kind": job["kind"], "outputs": outputs, "environment": environment_signature()}
     if job["kind"] == "candidate":
