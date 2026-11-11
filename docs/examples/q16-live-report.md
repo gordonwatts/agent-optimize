@@ -5,7 +5,7 @@
 Command used for this run:
 
 ```text
-agent-optimize run --json --report --provider openai --model gpt-6.1-sol --verification-groups 2 --max-output-tokens 8192 --artifact-root .agent-optimize/q16-live-servicex -- C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/.venv/Scripts/python.exe -B C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/examples/q16_ttbar.py --n-files 1 --output-dir .agent-optimize/q16-live-servicex-plots
+agent-optimize run --json --report --provider openai --model gpt-6.1-sol --verification-groups 2 --max-output-tokens 8192 --artifact-root .agent-optimize/q16-live-servicex-180 -- C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/.venv/Scripts/python.exe -B C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/examples/q16_ttbar.py --n-files 1 --output-dir .agent-optimize/q16-live-servicex-180-plots
 ```
 
 ## Function speedup
@@ -21,17 +21,17 @@ No Numba function with measured timing evidence was saved.
 
 | Phase | Elapsed time |
 | --- | ---: |
-| Run analysis once and save verification groups | 46.154 s |
-| Generate, check, compile and time Numba functions | 172.651 s |
-| Total elapsed time | 219.221 s |
+| Run analysis once and save verification groups | 11.947 s |
+| Generate, check, compile and time Numba functions | 125.329 s |
+| Total elapsed time | 137.705 s |
 
 The total covers the analysis and optimization work, plus coordination overhead. Preparing the Python environment is excluded. The analysis executes once; subsequent checks rerun only the saved function inputs.
 
-API usage: 7,771 known (partial) tokens; cost unavailable total (USD 0.0352885 known estimate; 2 unpriced attempts).
+API usage: 26,778 tokens; cost USD 0.0999033 estimated.
 
 | Code generator / model | Reported tokens | Estimated API cost |
 | --- | ---: | ---: |
-| openai / gpt-6.1-sol | 7771 (partial) | Unavailable |
+| openai / gpt-6.1-sol | 26778 | USD 0.0999033 |
 
 ## Checks and saved code
 

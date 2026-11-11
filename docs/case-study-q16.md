@@ -262,7 +262,7 @@ not resolve it.
 
 ### Live model trial through ServiceX
 
-The [live q16 report](examples/q16-live-report.md) records an actual ServiceX
+The [initial 60-second-timeout report](examples/q16-live-timeout-report.md) records an actual ServiceX
 transformation/download and a Sol 6.1 search. The analysis processed 7,552 selected
 events from one delivered file and retained two verification groups from 235
 function calls. The first model response used 7,771 reported tokens, with a
@@ -272,6 +272,27 @@ no usage evidence. The token and cost totals are therefore explicitly partial;
 the unknown requests are not counted as free.
 
 No Numba function was accepted, so this trial reports no Numba speedup and leaves
-the original Python function in use. A longer model-request timeout is the next
-proposed experiment; it has not been run. The successful local-generator sample
+the original Python function in use. The follow-up trial below uses a longer model-request timeout. The successful local-generator sample
 above remains a separate demonstration.
+
+
+### Live model follow-up with three-minute requests
+
+The [latest live q16 report](examples/q16-live-report.md) uses a fresh optimization
+session through the script's ServiceX path, two real-data verification groups,
+three model-code attempts and a fixed 180-second request timeout. All three
+requests returned usage evidence; none timed out. The analysis again processed
+7,552 selected events from one delivered file.
+
+Reported usage totals 20,574 input tokens and 6,204 output tokens: 26,778 tokens
+in total. Input details include 5,653 cache-read tokens and 14,912 cache-write
+tokens. Output includes 2,356 reasoning tokens. These detail counts are subsets,
+not additional tokens. The frozen Standard-tier estimate is USD 0.0999033, with
+no unpriced attempts in this session. The earlier timed-out session remains
+separate and still has an unknown full cost.
+
+The first translation used unsupported object access/methods. The second failed
+two nonfinite edge-case checks; the third still differed from the original
+function on required tests. No Numba function was accepted, so no Numba speedup
+is claimed. The script retains Python. This trial verifies live usage/cost
+reporting but does not establish successful model-generated optimization of q16.
