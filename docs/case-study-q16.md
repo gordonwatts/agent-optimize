@@ -341,3 +341,22 @@ The synthetic count varies with the bounded extra tests proposed by each model
 response. The strict exact-output gate left Python in use, so no speedup is
 claimed. The remaining issue is numerical equivalence, not missing compiler
 feedback; more calls were not made beyond the authorized ten-attempt session.
+
+
+### Complete-file check after synthetic rejection
+
+At Gordon's request, the final LLM candidate was tested across the complete
+delivered file even though synthetic tests had rejected it. The
+[complete-file comparison](examples/q16-full-data-check.md) covers all 7,552
+selected events and 235 function calls, plus three warm full-reconstruction
+passes. Of the real outputs, 7,547 matched bit for bit; five differed by at most
+four ULP (6.82121e-13 GeV absolute, 5.49324e-16 relative). The synthetic failures
+were exclusively NaN sign/payload-bit differences, with matching NaN positions
+and matching finite outputs.
+
+The checked candidate adapter's median was 0.245314 s versus 5.780842 s for the
+supplied Python reconstruction, a 23.57x warm reconstruction speedup. This is a
+diagnostic comparison including input packing/adaptation and output wrapping;
+it excludes ServiceX, ROOT reading, plotting and compilation. No accepted
+artifact was installed and the strict acceptance policy was not changed. No
+additional model calls were made.
