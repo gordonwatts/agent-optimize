@@ -243,12 +243,12 @@ def test_opt_in_live_proposal(tmp_path):
     assert response["provider_request_count"] == 1
 
 
-def test_default_live_transport_has_fixed_sixty_second_limit(tmp_path, monkeypatch):
+def test_default_live_transport_has_fixed_three_minute_limit(tmp_path, monkeypatch):
     calls = []
     def worker(command, **kwargs):
         calls.append(kwargs)
-        assert kwargs["timeout"] == 60
-        assert json.loads(kwargs["input_data"])["settings"]["timeout"] == 60
+        assert kwargs["timeout"] == 180
+        assert json.loads(kwargs["input_data"])["settings"]["timeout"] == 180
         return ProcessResult("timeout", None, "", "")
     monkeypatch.setattr(search, "run_worker", worker)
     response, failure = search.request_proposal(request(), tmp_path, search.SearchLimits(), None,

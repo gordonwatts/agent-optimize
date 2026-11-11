@@ -537,7 +537,7 @@ and recording-derived counterexamples never enter provider requests or feedback.
 Local request/response files are retained alongside each proposal's evaluation.
 
 The default is three replacement-code attempts per function, shared across its
-input contracts. Model requests have a fixed 60-second timeout; local checking,
+input contracts. Model requests have a fixed 180-second (three-minute) timeout; local checking,
 timing and the overall optimization have no time limits. Requests are limited to 128 KiB, responses
 to 64 KiB, and proposed extra cases to eight per proposal. Extra cases use only
 `zeros`, bounded `lengths`, or a known field's `boundaries`; the evaluator builds
@@ -561,7 +561,7 @@ Supported IDs are `gpt-6.1-sol`, `gpt-6.1-terra`, and `gpt-6-luna`. Configure
 Credential precedence is `--api-key` > the named environment variable > project
 root `.env` > user home `~/.env`; `OPENAI_API_KEY` alone is not used. A key's
 presence never enables live mode. The official SDK uses `responses.parse` with
-a Pydantic schema, retries disabled, a fixed 60-second model-request timeout, bounded output
+a Pydantic schema, retries disabled, a fixed 180-second (three-minute) model-request timeout, bounded output
 tokens, the official endpoint, and `store=False`. Reports/manifests identify the
 model and settings and retain allowlisted usage. Refusal, incomplete output,
 malformed output, transport failure, and timeout are reported separately.

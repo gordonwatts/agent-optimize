@@ -257,7 +257,7 @@ allocations. Copying uses bounded temporary chunks. These bounds do not limit th
 analysis function's own memory use.
 
 Search defaults to three replacement-code attempts per function, shared across
-input contracts. Model requests have a fixed 60-second timeout. Local checking,
+input contracts. Model requests have a fixed 180-second (three-minute) timeout. Local checking,
 timing and the overall optimization have no time limits. Requests are limited to 128 KiB, responses
 to 64 KiB, and extra-case proposals to eight. The evaluator alone builds additional
 `zeros`, bounded `lengths`, or known-field `boundaries` cases; mandatory cases remain

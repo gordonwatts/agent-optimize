@@ -21,7 +21,7 @@ shell history and operating-system command inspection can expose arguments.
 The live implementation follows the [official Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses):
 the official Python SDK's `responses.parse` receives a Pydantic proposal schema.
 It uses the official API endpoint, disables retries, sets `store=False`, and
-bounds output tokens. The separate provider process has a fixed 60-second timeout, including SDK
+bounds output tokens. The separate provider process has a fixed 180-second (three-minute) timeout, including SDK
 startup. This is the only optimization timeout; local checking and timing have
 no execution time limits. Refusals, incomplete output, malformed output, transport errors,
 response limits, and timeouts produce distinct local statuses.
