@@ -42,18 +42,14 @@ def run(
     artifact_root: Path = typer.Option(Path(".agent-optimize")),
     dispatch_mode: DispatchMode = typer.Option(None),
     max_capture_bytes: int = typer.Option(DEFAULT_CAPTURE_BYTES),
-    max_calls: int = typer.Option(DEFAULT_CALL_LIMIT, "--verification-groups", "--max-calls", help="Save up to this many real-data verification groups per function for correctness checks and timing. One group is one function call."),
-    max_proposals: int = typer.Option(3, "--max-attempts", "--max-proposals", help="Maximum replacement-code attempts per function. If none passes the correctness and speed checks, keep the original Python function."),
-    function_seconds: float = typer.Option(120),
-    worker_seconds: float = typer.Option(30),
-    search_seconds: float = typer.Option(300),
+    verification_groups: int = typer.Option(DEFAULT_CALL_LIMIT, "--verification-groups", help="Save up to this many real-data verification groups per function for correctness checks and timing. One group is one function call."),
+    max_attempts: int = typer.Option(3, "--max-attempts", help="Maximum replacement-code attempts per function. If none passes the correctness and speed checks, keep the original Python function."),
     max_request_bytes: int = typer.Option(128 * 1024),
     max_response_bytes: int = typer.Option(64 * 1024),
     max_extra_cases: int = typer.Option(8),
     provider: Provider = typer.Option(Provider.mock),
     model: str = typer.Option("gpt-6.1-sol"),
     api_key: str = typer.Option(None, help="OpenAI credential; prefer AGENT_OPTIMIZE_OAI_API_KEY or .env to avoid shell history."),
-    provider_seconds: float = typer.Option(30),
     max_output_tokens: int = typer.Option(4096),
     command: list[str] = typer.Argument(None, help="script.py [arguments], or -- <command> [arguments]; optimizer options precede the script."),
 ):
@@ -63,11 +59,10 @@ def run(
         raise ConfigurationError(f"invalid model: {model!r} (choose from {', '.join(MODELS)})")
     return SimpleNamespace(json=json_output, report=report, artifact_root=artifact_root,
         dispatch_mode=dispatch_mode.value if dispatch_mode else None,
-        max_capture_bytes=max_capture_bytes, max_calls=max_calls, max_proposals=max_proposals,
-        function_seconds=function_seconds, worker_seconds=worker_seconds, search_seconds=search_seconds,
+        max_capture_bytes=max_capture_bytes, verification_groups=verification_groups, max_attempts=max_attempts,
         max_request_bytes=max_request_bytes, max_response_bytes=max_response_bytes,
         max_extra_cases=max_extra_cases, provider=provider.value, model=model, api_key=api_key,
-        provider_seconds=provider_seconds, max_output_tokens=max_output_tokens, command=command or [])
+        max_output_tokens=max_output_tokens, command=command or [])
 
 
 # Force a group even though there is currently one subcommand.
@@ -91,6 +86,29 @@ def _parse(arguments):
     if command_start and arguments[command_start - 1] == "--":
         options.command.insert(0, "--")
     return options
+
+
+def _recorded_command(arguments, api_key=None):
+    """Retain the invocation, redacting credentials and inline programs."""
+    import shlex
+    sensitive = {"--api-key", "--password", "--token", "--access-token", "--secret", "--credential", "--authorization"}
+    values, redact_next = [], False
+    for argument in arguments:
+        if redact_next:
+            values.append("[redacted]")
+            redact_next = False
+            continue
+        flag, separator, value = argument.partition("=")
+        if flag.lower() in sensitive:
+            values.append(flag + "=[redacted]" if separator else flag)
+            redact_next = not separator
+        elif argument == "-c":
+            values.append(argument)
+            redact_next = True
+        else:
+            values.append(argument.replace(api_key, "[redacted]") if api_key else argument)
+    command = ["agent-optimize", *values]
+    return subprocess.list2cmdline(command) if os.name == "nt" else shlex.join(command)
 
 
 def _checkpoint(session, fallback):
@@ -153,7 +171,7 @@ def _run(arguments):
 
     if not command or command[0] != "--" or len(command) == 1:
         raise ConfigurationError("run requires script.py [arguments] or a command after --, for example: run -- python analysis.py")
-    if options.max_capture_bytes <= 0 or options.max_calls <= 0:
+    if options.max_capture_bytes <= 0 or options.verification_groups <= 0:
         raise ConfigurationError("--max-capture-bytes and --verification-groups must be positive")
     from .search import SearchLimits
     from .provider import ProviderSettings, resolve_api_key
@@ -161,8 +179,8 @@ def _run(arguments):
     try:
         from .modes import dispatch_mode
         selected_mode = dispatch_mode(options.dispatch_mode)
-        limits = SearchLimits(options.max_proposals, options.function_seconds, options.worker_seconds, options.search_seconds, options.max_request_bytes, options.max_response_bytes, options.max_extra_cases)
-        provider = ProviderSettings(options.provider, options.model, options.provider_seconds, options.max_output_tokens)
+        limits = SearchLimits(options.max_attempts, options.max_request_bytes, options.max_response_bytes, options.max_extra_cases)
+        provider = ProviderSettings(options.provider, options.model, max_output_tokens=options.max_output_tokens)
         api_key = resolve_api_key(options.api_key) if provider.kind == "openai" else None
         if provider.kind == "openai":
             import importlib.util
@@ -170,18 +188,19 @@ def _run(arguments):
                 raise ValueError("OpenAI provider requires the optional package: pip install 'agent-optimize[openai]'")
     except ValueError as error:
         raise ConfigurationError(str(error))
-    base = {"schema_version": 1, "child_exit_code": None, "functions": [], "limits": {"max_capture_bytes": options.max_capture_bytes, "max_calls_per_function": options.max_calls}, "search_limits": asdict(limits)}
+    base = {"schema_version": 1, "child_exit_code": None, "functions": [], "limits": {"max_capture_bytes": options.max_capture_bytes, "max_calls_per_function": options.verification_groups}, "search_limits": asdict(limits)}
+    base["run_command"] = _recorded_command(arguments, api_key)
     base["provider"] = provider.identity
     base["dispatch_mode"] = selected_mode
     base["python_executable"] = sys.executable
     try:
-        session = create_session(options.artifact_root, max_bytes=options.max_capture_bytes, max_calls=options.max_calls, provider=provider.identity)
+        session = create_session(options.artifact_root, max_bytes=options.max_capture_bytes, max_calls=options.verification_groups, provider=provider.identity)
     except (OSError, ValueError) as error:
         return finish(base, "error", 2, error={"phase": "session", "kind": type(error).__name__, "message": f"could not create recording session: {error}"[:500]})
     base.update(session_id=session.name, session_directory=str(session), artifact_root=str(session.parent.parent), captured_bytes=0)
-    print(f"agent-optimize: recording at {session}; limits: {options.max_capture_bytes} bytes, {options.max_calls} verification groups/function", file=sys.stderr)
+    print(f"agent-optimize: recording at {session}; limits: {options.max_capture_bytes} bytes, {options.verification_groups} verification groups/function", file=sys.stderr)
     print(f"agent-optimize: dispatch mode: {selected_mode}; correctness checks remain enabled during evaluation", file=sys.stderr)
-    print(f"agent-optimize: {provider.kind} search limits: {limits.proposals} attempts/function, {limits.function_seconds:g}s/function, {limits.worker_seconds:g}s/worker, {limits.session_seconds:g}s/session, {limits.request_bytes} request bytes, {limits.response_bytes} response bytes, {limits.extra_cases} extra cases/proposal", file=sys.stderr)
+    print(f"agent-optimize: {provider.kind} search limits: {limits.proposals} attempts/function, {limits.request_bytes} request bytes, {limits.response_bytes} response bytes, {limits.extra_cases} extra cases/proposal", file=sys.stderr)
     from .process import worker_environment
     environment = worker_environment()
     environment[SESSION_ENV] = str(session)
@@ -204,7 +223,7 @@ def _run(arguments):
     try:
         from .replay import replay_session
 
-        report = {**base, **replay_session(session, child.returncode, timeout=limits.worker_seconds)}
+        report = {**base, **replay_session(session, child.returncode)}
         if not child.returncode:
             phase = "search"
             from .evaluator import evaluate_session
@@ -284,7 +303,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if command and command[0] != "--" and Path(command[0]).suffix.lower() == ".py":
             prefix = arguments[:len(arguments) - len(command)]
             json_mode = options.json
-            if options.max_capture_bytes <= 0 or options.max_calls <= 0:
+            if options.max_capture_bytes <= 0 or options.verification_groups <= 0:
                 raise ConfigurationError("--max-capture-bytes and --verification-groups must be positive")
             from .search import SearchLimits
             from .provider import ProviderSettings
@@ -292,8 +311,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             from .script import launch_script
             try:
                 dispatch_mode(options.dispatch_mode)
-                SearchLimits(options.max_proposals, options.function_seconds, options.worker_seconds, options.search_seconds, options.max_request_bytes, options.max_response_bytes, options.max_extra_cases)
-                ProviderSettings(options.provider, options.model, options.provider_seconds, options.max_output_tokens)
+                SearchLimits(options.max_attempts, options.max_request_bytes, options.max_response_bytes, options.max_extra_cases)
+                ProviderSettings(options.provider, options.model, max_output_tokens=options.max_output_tokens)
                 return launch_script(arguments, command, json_mode=json_mode, provider=options.provider)
             except ValueError as error:
                 raise ConfigurationError(str(error)) from error

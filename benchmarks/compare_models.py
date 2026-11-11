@@ -3,7 +3,7 @@
 Offline smoke run::
 
     python -m benchmarks.compare_models --provider mock --cases integer_threshold
-        dijet_combinatorics nearest_jet_matching --events 16 --max-proposals 2
+        dijet_combinatorics nearest_jet_matching --events 16 --max-attempts 2
 
 Live run (requires configured credentials; bills the selected provider)::
 
@@ -77,12 +77,12 @@ def summarize(report, *, expected_supported):
 
 
 def _command(options, model, artifact_root, name):
-    command = [sys.executable, "-m", "agent_optimize", "run", "--json", "--provider", options.provider, "--artifact-root", str(artifact_root), "--max-proposals", str(options.max_proposals), "--function-seconds", str(options.function_seconds), "--search-seconds", str(options.search_seconds), "--worker-seconds", str(options.worker_seconds)]
+    command = [sys.executable, "-m", "agent_optimize", "run", "--json", "--provider", options.provider, "--artifact-root", str(artifact_root), "--max-attempts", str(options.max_attempts)]
     if getattr(options, "dispatch_mode", None):
         command += ["--dispatch-mode", options.dispatch_mode]
     # Explicit provider selection overrides inherited live-provider configuration.
     if options.provider == "openai":
-        command += ["--model", model, "--provider-seconds", str(options.provider_seconds), "--max-output-tokens", str(options.max_output_tokens)]
+        command += ["--model", model, "--max-output-tokens", str(options.max_output_tokens)]
     command += ["--", sys.executable, "-m", "benchmarks.workloads", "--case", name, "--seed", str(options.seed), "--events", *map(str, options.events)]
     return command
 
@@ -122,12 +122,7 @@ def main(argv=None):
     parser.add_argument("--events", nargs="+", type=int, default=[128, 2048])
     parser.add_argument("--seed", type=int, default=20261106)
     parser.add_argument("--repeats", type=int, default=1)
-    parser.add_argument("--max-proposals", type=int, default=3)
-    parser.add_argument("--function-seconds", type=float, default=180)
-    parser.add_argument("--search-seconds", type=float, default=240)
-    parser.add_argument("--worker-seconds", type=float, default=45)
-    parser.add_argument("--provider-seconds", type=float, default=60)
-    parser.add_argument("--run-seconds", type=float, default=900, help="wall-time limit for each model/case/repeat, including recording and replay")
+    parser.add_argument("--max-attempts", type=int, default=3)
     parser.add_argument("--max-output-tokens", type=int, default=4096)
     parser.add_argument("--output", type=Path, help="new directory; defaults under .agent-optimize/benchmarks")
     parser.add_argument("--list", action="store_true", help="describe cases without running")
@@ -143,7 +138,7 @@ def main(argv=None):
         parser.error("select each model once; use --repeats for repeated measurements")
     if options.repeats < 1 or any(count < 0 for count in options.events):
         parser.error("repeats must be positive and event counts nonnegative")
-    for key in ("max_proposals", "function_seconds", "search_seconds", "worker_seconds", "provider_seconds", "run_seconds", "max_output_tokens"):
+    for key in ("max_attempts", "max_output_tokens"):
         value = getattr(options, key)
         if value <= 0 or value == float("inf") or value != value:
             parser.error(f"{key.replace('_', '-')} must be finite and positive")
@@ -173,7 +168,7 @@ def main(argv=None):
                 print(f"Running {model}: {name} (repeat {repeat + 1})", flush=True)
                 try:
                     with (directory / "run.log").open("w", encoding="utf-8") as log:
-                        process = run_benchmark_process(command, cwd=ROOT, env=environment, stdout=subprocess.PIPE, stderr=log, text=True, encoding="utf-8", check=False, timeout=options.run_seconds)
+                        process = run_benchmark_process(command, cwd=ROOT, env=environment, stdout=subprocess.PIPE, stderr=log, text=True, encoding="utf-8", check=False, timeout=None)
                     (directory / "cli-stdout.json").write_text(process.stdout, encoding="utf-8")
                     row.update(exit_code=process.returncode, wall_seconds=time.monotonic() - start, workload_evidence=_workload_evidence(directory / "run.log"))
                     try:
@@ -188,7 +183,7 @@ def main(argv=None):
                         partial = partial.decode("utf-8", errors="replace")
                     partial_path = directory / "cli-stdout.partial.txt"
                     partial_path.write_text(partial, encoding="utf-8")
-                    row.update(status="timed_out", exit_code=None, wall_seconds=time.monotonic() - start, timeout_seconds=options.run_seconds, http_request_count=None, stdout_path=str(partial_path), workload_evidence=_workload_evidence(directory / "run.log"))
+                    row.update(status="timed_out", exit_code=None, wall_seconds=time.monotonic() - start, timeout_seconds=error.timeout, http_request_count=None, stdout_path=str(partial_path), workload_evidence=_workload_evidence(directory / "run.log"))
                 except OSError as error:
                     row.update(status="launch_error", wall_seconds=time.monotonic() - start, error={"kind": type(error).__name__, "message": str(error)})
                 except KeyboardInterrupt:

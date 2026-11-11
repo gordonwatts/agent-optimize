@@ -2,38 +2,34 @@
 
 **Result:** Completed. **1 of 1 functions optimized.**
 
-This demonstration processed the complete delivered file: 30,000 entries, yielding 7,552 selected events. Verification groups 1 and 2 contain different events, with 24 events in each group. The function includes both reconstruction and scoring.
+Command used for this run:
 
-To run over the complete delivered file, use this command in the report branch's prepared project environment:
-
-```sh
-agent-optimize run --report --verification-groups 2 examples/q16_ttbar.py --input-file .agent-optimize/q16-delivered.root
+```text
+agent-optimize run --json --report --provider mock --artifact-root .agent-optimize/q16-review-five --verification-groups 2 -- C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/.venv/Scripts/python.exe -B C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/examples/q16_ttbar.py --input-file C:/Users/gwatts/.codex/worktrees/q16-reconstruction/agent-optimize/.agent-optimize/q16-delivered.root --output-dir .agent-optimize/q16-review-five-plots
 ```
-
-`--verification-groups 2` saves up to two groups of real events for correctness checks and timing. `--max-attempts` allows three replacement-code attempts by default, so it is omitted from this command. This demonstration used that default. To request every file from ServiceX instead, replace `--input-file .agent-optimize/q16-delivered.root` with `--n-files 0`.
 
 ## Function speedup
 
-Each row is a different saved verification group. The Events column gives the number of events in that group. The original function and replacement are timed using the same events, and repeated measurements reuse those events.
+Each row is a different saved verification group. The Events column gives the number of events in that group. The original Python function and Numba function are timed using the same events, and repeated measurements reuse those events.
 
-| Function / verification group | Events | Original Python | Numba replacement | Conservative speedup |
+| Function / verification group | Events | Original Python function | Numba function | Conservative speedup |
 | --- | ---: | ---: | ---: | ---: |
-| reconstruct\_events / verification group 1 | 24 | 24.740 ms | 0.173 ms | 139.45x |
-| reconstruct\_events / verification group 2 | 24 | 28.123 ms | 0.159 ms | 162.83x |
+| reconstruct\_events / verification group 1 | 24 | 23.827 ms | 0.168 ms | 139.09x |
+| reconstruct\_events / verification group 2 | 24 | 23.636 ms | 0.138 ms | 161.53x |
 
-Times are medians of repeated measurements after warm-up, including the overhead of calling the replacement through `@optimize`. The conservative speedup is the lowest ratio across timing rounds for each verification group, so it can differ from the ratio of the displayed medians. These are function timings; reading data, plotting and other analysis work are outside this comparison.
+Times are medians of repeated measurements after warm-up, including the overhead of calling the Numba function through `@optimize`. The conservative speedup is the lowest ratio across timing rounds for each verification group, so it can differ from the ratio of the displayed medians. These are function timings; reading data, plotting and other analysis work are outside this comparison.
 
 ## Time and API cost to obtain the result
 
 | Phase | Elapsed time |
 | --- | ---: |
-| Run analysis once and save verification groups | 11.714 s |
-| Generate, check, compile and time replacements | 50.923 s |
-| Total elapsed time | 63.114 s |
+| Run analysis once and save verification groups | 11.756 s |
+| Generate, check, compile and time Numba functions | 50.456 s |
+| Total elapsed time | 62.643 s |
 
 The total covers the analysis and optimization work, plus coordination overhead. Preparing the Python environment is excluded. The analysis executes once; subsequent checks rerun only the saved function inputs.
 
-For reconstruct\_events, compilation took 3995.532 ms within the first replacement call of 4009.471 ms. That first call is included in the optimization phase above; do not add it or compilation again to the total. The speedup table uses later, warm calls.
+For reconstruct\_events, compilation took 4067.720 ms within the first Numba function call of 4078.506 ms. That first call is included in the optimization phase above; do not add it or compilation again to the total. The speedup table uses later, warm calls.
 
 API usage: 0 tokens; cost USD 0 (no API requests).
 
@@ -43,24 +39,22 @@ This run used a deterministic local code generator (the mock backend). It made n
 
 Correctness here means exact agreement with the original Python function, including floating-point bit patterns.
 
-### reconstruct\_events
+### Function reconstruct\_events
 
-The chosen code passed all required checks (3 attempts to reach the final code).
+The Numba function passed all required checks (3 attempts to reach the final code).
 
-Saved 2 verification groups (from 235 total function calls).
+Verified the Numba function against 2 real-data verification groups (out of 235 total function calls).
 
-**The chosen replacement passed all 108 correctness checks.** It also passed the speed and compatibility requirements.
+**The Numba function passed all 108 correctness checks.** It also passed the speed and compatibility requirements.
 
-Each correctness check compares the original function and the replacement on one complete verification group, including every event in that group.
+Each correctness check compares the original function and the Numba function on one complete verification group, including every event in that group.
 
 | Verification groups checked | Number of checks | Result |
 | --- | ---: | --- |
-| Verification group 1 from the speedup table (24 events) | 1 | Passed |
-| Verification group 2 from the speedup table (24 events) | 1 | Passed |
+| Verification group 1 (24 events) | 1 | Passed |
+| Verification group 2 (24 events) | 1 | Passed |
 | Synthetic test groups for edge cases | 106 | Passed |
 | **Total** | **108** | **Passed** |
-
-The 2 real-data verification groups count as 2 checks, regardless of how many events each contains. The other 106 checks use synthetic test groups for edge-case testing.
 
 **Original Python function**
 
@@ -110,7 +104,7 @@ def reconstruct_events(events):
     return ak.sum(combined[ak.local_index(score, axis=1) == ak.argmin(score, axis=1, keepdims=True)], axis=1)
 ```
 
-**Numba replacement**
+**Numba function**
 
 ```python
 def kernel(offsets, columns, scalars):

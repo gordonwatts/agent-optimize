@@ -93,7 +93,7 @@ def test_mock_runner_explicitly_overrides_inherited_live_provider(monkeypatch, t
     command, kwargs = invocations[0]
     assert command[command.index("--provider") + 1] == "mock"
     assert "--model" not in command
-    assert kwargs["timeout"] == 900
+    assert kwargs["timeout"] is None
 
 
 def test_runner_checkpoints_timeout_and_continues_next_case(monkeypatch, tmp_path):
@@ -101,14 +101,14 @@ def test_runner_checkpoints_timeout_and_continues_next_case(monkeypatch, tmp_pat
 
     def offline_process(command, **kwargs):
         invocations.append(command)
-        assert kwargs["timeout"] == 12
+        assert kwargs["timeout"] is None
         if len(invocations) == 1:
             raise subprocess.TimeoutExpired(command, 12, output=b"partial output")
         return subprocess.CompletedProcess(command, 0, json.dumps({"status": "completed", "child_exit_code": 0, "functions": [{"status": "unsupported"}]}))
 
     monkeypatch.setattr(compare_models, "run_benchmark_process", offline_process)
     output = tmp_path / "comparison"
-    assert compare_models.main(["--provider", "mock", "--cases", "integer_threshold", "dijet_combinatorics", "--run-seconds", "12", "--output", str(output)]) == 1
+    assert compare_models.main(["--provider", "mock", "--cases", "integer_threshold", "dijet_combinatorics", "--output", str(output)]) == 1
     report = json.loads((output / "comparison.json").read_text())
     assert len(invocations) == 2
     first, second = report["results"]

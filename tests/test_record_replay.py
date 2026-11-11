@@ -129,7 +129,7 @@ def test_cli_limit_controls_are_reported_and_skip_full_inputs(tmp_path):
             return events
         for index in range(3):
             print(len(identity(ak.Array(np.arange(10000)))))
-    """, "--max-capture-bytes", "5000", "--max-calls", "1")
+    """, "--max-capture-bytes", "5000", "--verification-groups", "1")
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == ["10000"] * 3
     assert report["limits"] == {"max_capture_bytes": 5000, "max_calls_per_function": 1}

@@ -134,23 +134,3 @@ def test_correctness_passing_candidate_with_print_is_rejected_before_timing_or_a
     result = performance.complete_evaluation(checked, metadata, accepted["function_id"], accepted["root"], timing_provider=unexpected)
     assert result["status"] == "rejected"
     assert "safe for reuse" in result["reason"]
-
-
-def test_expired_experiment_deadline_never_launches_timing_or_saves_an_artifact(accepted, tmp_path, monkeypatch):
-    root = tmp_path / "expired"
-    session = create_session(root)
-    Recorder(session).invoke(accepted["module"].ht.__wrapped__, (accepted["module"].make_events(),), {})
-    report = replay_session(session, 0)
-
-    def unexpected(evaluation):
-        raise AssertionError("expired experiment reached timing")
-
-    from agent_optimize.search import SearchLimits
-
-    # Expire the function budget before its first check, independent of clock resolution.
-    ticks = iter([100.0, 100.0, 101.0])
-    monkeypatch.setattr(evaluator, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
-    result = evaluate_session(session, report, search_limits=SearchLimits(function_seconds=0.5), timing_provider=unexpected)
-    assert result["functions"][0]["search"]["stop"] == "deadline"
-    assert result["functions"][0]["evaluations"] == []
-    assert not (root / "accepted").exists()

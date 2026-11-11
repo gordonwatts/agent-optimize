@@ -73,9 +73,9 @@ def _join_windows_job(name):
         api.CloseHandle(job)
 
 
-def run(command, *, timeout, **kwargs):
+def run(command, *, timeout=None, **kwargs):
     """Like subprocess.run(check=False), but always clean up descendants."""
-    if timeout <= 0:
+    if timeout is not None and timeout <= 0:
         raise ValueError("timeout must be positive")
     kwargs.pop("check", None)
     job = None

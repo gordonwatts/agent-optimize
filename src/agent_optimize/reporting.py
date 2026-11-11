@@ -34,9 +34,9 @@ def _text(value):
     return re.sub(r"([`*\[\]|_])", r"\\\1", value)
 
 
-def _fence(code):
+def _fence(code, language="python"):
     fence = "`" * max(3, max((len(x) + 1 for x in re.findall(r"`+", code)), default=3))
-    return f"{fence}python\n{code.rstrip()}\n{fence}"
+    return f"{fence}{language}\n{code.rstrip()}\n{fence}"
 
 
 def _source(evaluation, kind):
@@ -90,26 +90,25 @@ def _reference_listing(source):
 def _correctness(evaluation):
     count = evaluation.get("case_count", "?")
     checks = evaluation.get("checks", [])
-    lines = [f"**The chosen replacement passed all {count} correctness checks.** It also passed the speed and compatibility requirements.", ""]
+    lines = [f"**The Numba function passed all {count} correctness checks.** It also passed the speed and compatibility requirements.", ""]
     if checks and len(checks) == count and all(c.get("status") == "passed" for c in checks):
         recorded_ids = set(evaluation.get("recorded_case_ids", []))
         recorded = [c for c in checks if c["case_id"] in recorded_ids]
         generated = [c for c in checks if c["case_id"] not in recorded_ids]
         measured = {row[0]["case_id"]: (number, row[0].get("events"))
                     for number, row in enumerate(_timing_rows(evaluation), 1)}
-        lines += ["Each correctness check compares the original function and the replacement on one complete verification group, including every event in that group.", "",
+        lines += ["Each correctness check compares the original function and the Numba function on one complete verification group, including every event in that group.", "",
                   "| Verification groups checked | Number of checks | Result |", "| --- | ---: | --- |"]
         for check in recorded:
             group = measured.get(check["case_id"])
-            label = f"Verification group {group[0]} from the speedup table" if group else "Saved verification group"
+            label = f"Verification group {group[0]}" if group else "Saved verification group"
             if group and isinstance(group[1], int):
                 label += f" ({group[1]} events)"
             lines.append(f"| {label} | 1 | Passed |")
         lines += [f"| Synthetic test groups for edge cases | {len(generated)} | Passed |",
-                  f"| **Total** | **{count}** | **Passed** |", "",
-                  f"The {len(recorded)} real-data verification groups count as {len(recorded)} checks, regardless of how many events each contains. The other {len(generated)} checks use synthetic test groups for edge-case testing.", ""]
+                  f"| **Total** | **{count}** | **Passed** |", ""]
     else:
-        lines += ["Each correctness check compares the original function and the replacement on one complete verification group, including every event in that group. A detailed breakdown of saved and generated verification groups is unavailable in this result.", ""]
+        lines += ["Each correctness check compares the original function and the Numba function on one complete verification group, including every event in that group. A detailed breakdown of saved and generated verification groups is unavailable in this result.", ""]
     return lines
 
 
@@ -118,8 +117,10 @@ def render_report(result, name):
     optimized = sum(bool(_accepted(f)) for f in functions)
     status_label = "Analysis failed" if result["status"] == "child_failed" else result["status"].replace("_", " ").capitalize()
     lines = [f"# Optimization report: {_text(name)}", "", f"**Result:** {_text(status_label)}. **{optimized} of {len(functions)} functions optimized.**", ""]
-    lines += ["## Function speedup", "", "Each row is a different saved verification group. The Events column gives the number of events in that group. The original function and replacement are timed using the same events, and repeated measurements reuse those events.", "",
-              "| Function / verification group | Events | Original Python | Numba replacement | Conservative speedup |", "| --- | ---: | ---: | ---: | ---: |"]
+    if result.get("run_command"):
+        lines += ["Command used for this run:", "", _fence(result["run_command"], "text"), ""]
+    lines += ["## Function speedup", "", "Each row is a different saved verification group. The Events column gives the number of events in that group. The original Python function and Numba function are timed using the same events, and repeated measurements reuse those events.", "",
+              "| Function / verification group | Events | Original Python function | Numba function | Conservative speedup |", "| --- | ---: | ---: | ---: | ---: |"]
     rows = 0
     for function in functions:
         fname = function["identity"]["qualified_name"]
@@ -128,12 +129,12 @@ def render_report(result, name):
                 rows += 1
                 lines.append(f"| {_text(fname)} / verification group {number} | {recording.get('events', '?')} | {reference:.3f} ms | {candidate:.3f} ms | {ratio:.2f}x |")
     if rows:
-        lines += ["", "Times are medians of repeated measurements after warm-up, including the overhead of calling the replacement through `@optimize`. The conservative speedup is the lowest ratio across timing rounds for each verification group, so it can differ from the ratio of the displayed medians. These are function timings; reading data, plotting and other analysis work are outside this comparison."]
+        lines += ["", "Times are medians of repeated measurements after warm-up, including the overhead of calling the Numba function through `@optimize`. The conservative speedup is the lowest ratio across timing rounds for each verification group, so it can differ from the ratio of the displayed medians. These are function timings; reading data, plotting and other analysis work are outside this comparison."]
     else:
-        lines += ["", "No eligible replacement with measured timing evidence was saved."]
+        lines += ["", "No Numba function with measured timing evidence was saved."]
     lines += ["", "## Time and API cost to obtain the result", "", "| Phase | Elapsed time |", "| --- | ---: |"]
     timings = result.get("run_timing", {})
-    for key, label in (("analysis_seconds", "Run analysis once and save verification groups"), ("optimization_seconds", "Generate, check, compile and time replacements"), ("controller_seconds", "Total elapsed time")):
+    for key, label in (("analysis_seconds", "Run analysis once and save verification groups"), ("optimization_seconds", "Generate, check, compile and time Numba functions"), ("controller_seconds", "Total elapsed time")):
         value = timings.get(key)
         lines.append(f"| {label} | {value:.3f} s |" if isinstance(value, (int, float)) else f"| {label} | Unavailable |")
     lines += ["", "The total covers the analysis and optimization work, plus coordination overhead. Preparing the Python environment is excluded. The analysis executes once; subsequent checks rerun only the saved function inputs.", ""]
@@ -141,7 +142,7 @@ def render_report(result, name):
         for evaluation in _accepted(function):
             timing = evaluation.get("timing", {})
             if timing.get("mode") == "measured" and timing.get("status") == "passed":
-                lines += [f"For {_text(function['identity']['qualified_name'])}, compilation took {timing.get('compilation_ns', 0) / 1e6:.3f} ms within the first replacement call of {timing.get('first_use_ns', 0) / 1e6:.3f} ms. That first call is included in the optimization phase above; do not add it or compilation again to the total. The speedup table uses later, warm calls.", ""]
+                lines += [f"For {_text(function['identity']['qualified_name'])}, compilation took {timing.get('compilation_ns', 0) / 1e6:.3f} ms within the first Numba function call of {timing.get('first_use_ns', 0) / 1e6:.3f} ms. That first call is included in the optimization phase above; do not add it or compilation again to the total. The speedup table uses later, warm calls.", ""]
     lines += [usage_line(result["usage_summary"]), ""]
     summary = result["usage_summary"]
     local_only = summary.get("models") and all(m["provider"] == "mock" for m in summary["models"])
@@ -164,11 +165,11 @@ def render_report(result, name):
     for function in functions:
         accepted = _accepted(function)
         iterations = len(function.get("evaluations", []))
-        status = f"The chosen code passed all required checks ({iterations} attempts to reach the final code)." if accepted else "No replacement was saved; the original Python function remains in use."
+        status = f"The Numba function passed all required checks ({iterations} attempts to reach the final code)." if accepted else "No Numba function was saved; the original Python function remains in use."
         saved = function.get("captured_calls", 0)
         total_calls = saved + sum(skip.get("count", 0) for skip in function.get("skipped", {}).values())
-        lines += [f"### {_text(function['identity']['qualified_name'])}", "", status, "",
-                  f"Saved {saved} verification groups (from {total_calls} total function calls).", ""]
+        lines += [f"### Function {_text(function['identity']['qualified_name'])}", "", status, "",
+                  f"Verified the Numba function against {saved} real-data verification groups (out of {total_calls} total function calls)." if accepted else f"Collected {saved} verification groups (out of {total_calls} total function calls).", ""]
         for evaluation in function.get("evaluations", []):
             pricing = evaluation.get("provider_cost", {}).get("pricing")
             if pricing:
@@ -179,12 +180,12 @@ def render_report(result, name):
             continue
         for number, evaluation in enumerate(accepted, 1):
             if len(accepted) > 1:
-                lines += [f"#### Chosen replacement for input layout {number}", ""]
+                lines += [f"#### Numba function for input layout {number}", ""]
             lines += _correctness(evaluation)
             timing = evaluation.get("timing", {})
             if timing.get("mode") != "measured":
                 lines += ["Timing evidence is a controlled test fixture; it is not a measured performance claim.", ""]
-            for kind, title in (("reference", "Original Python function"), ("candidate", "Numba replacement")):
+            for kind, title in (("reference", "Original Python function"), ("candidate", "Numba function")):
                 source = _source(evaluation, kind)
                 lines += [f"**{title}**", ""]
                 if source is not None and kind == "reference":

@@ -22,7 +22,7 @@ def test_report_shows_real_frozen_source_and_labels_controlled_evidence(accepted
     assert "from agent_optimize import optimize" in text
     assert "restored for display" not in text
     assert "controlled test fixture" in text
-    assert "No eligible replacement with measured timing" in text
+    assert "No Numba function with measured timing" in text
     assert "2.00x" not in text
     assert "0 tokens" in text
     path = write_report(result, ["--", sys.executable, "analysis.py", "--api-key", "do-not-copy"], tmp_path)
@@ -72,21 +72,23 @@ def test_report_explains_measured_inputs_effort_and_checks_without_internal_coun
     assert "1 of 1 functions optimized" in text and "The count includes" not in text
     assert "verification group 1 | 24" in text and "verification group 2 | 24" in text and "case-000" not in text
     assert "10.00x" in text and "15.00x" not in text  # Lowest round ratio, not the ratio of displayed medians.
-    assert "Verification group 1 from the speedup table (24 events) | 1 | Passed" in text
-    assert "Verification group 2 from the speedup table (24 events) | 1 | Passed" in text
+    assert "Verification group 1 (24 events) | 1 | Passed" in text
+    assert "Verification group 2 (24 events) | 1 | Passed" in text
     assert "Synthetic test groups for edge cases | 3 | Passed" in text
     assert "**Total** | **5**" in text
-    assert "Saved 2 verification groups" in text and "Saved example inputs from" not in text
+    assert "Verified the Numba function against 2 real-data verification groups" in text and "Saved example inputs from" not in text
     assert "#### Saved replacement" not in text
     assert "2 attempts to reach the final code" in text
     assert "Generated inputs comprise" not in text
     assert "independently validate" not in text
-    assert "Numba replacement | Conservative speedup" in text
+    assert "Numba function | Conservative speedup" in text
     assert "Replacement outcomes:" not in text
     assert "rejected" not in text
-    assert "Saved 2 verification groups (from 235 total function calls)" in text
+    assert "Verified the Numba function against 2 real-data verification groups (out of 235 total function calls)" in text
     assert "Another 233" not in text
-    assert "compilation took 2.000 ms within the first replacement call of 3.000 ms" in text
+    assert "regardless of how many events" not in text
+    assert "The other 3 checks" not in text
+    assert "compilation took 2.000 ms within the first Numba function call of 3.000 ms" in text
     assert "included in the optimization phase" in text
     assert "deterministic local code generator" in text and "Searches using a model have their own" in text
     assert all(word not in text for word in ("HTTP", "Provider attempts", "dispatch", "Controller", "## Next step"))
@@ -133,3 +135,25 @@ def test_report_write_failure_is_actionable_and_preserves_child_exit(tmp_path, m
 def test_report_command_names_do_not_contain_inline_program_or_arguments():
     assert command_name(["--", "python", "-c", "secret.py", "private"]) == "python-command"
     assert command_name(["--", "python", "-m", "analysis", "private"]) == "analysis"
+
+
+def test_report_introduction_uses_only_generic_run_settings():
+    result = {"status": "completed", "functions": [],
+              "limits": {"max_calls_per_function": 7}, "search_limits": {"proposals": 3},
+              "run_command": "agent-optimize run --report --verification-groups 7 --max-attempts 3 -- python unrelated-analysis.py --events 12"}
+    result["usage_summary"] = summarize_usage(result)
+    text = render_report(result, "unrelated-analysis")
+    assert result["run_command"] in text
+    assert "<analysis command>" not in text
+    assert all(word not in text for word in ("q16", "ServiceX", "future", "after review"))
+
+
+def test_actual_command_preserves_script_arguments_and_redacts_credentials():
+    from agent_optimize.cli import _recorded_command
+    arguments = ["run", "--api-key", "private-key", "--report", "--", "python",
+                 "analysis with spaces.py", "--input-file", "events.root", "--token=private-token"]
+    command = _recorded_command(arguments, "private-key")
+    assert "private-key" not in command and "private-token" not in command
+    assert "analysis with spaces.py" in command and "--input-file events.root" in command
+    assert "[redacted]" in command
+    assert "private inline program" not in _recorded_command(["run", "--", "python", "-c", "private inline program"])

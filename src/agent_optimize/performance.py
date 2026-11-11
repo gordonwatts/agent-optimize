@@ -35,7 +35,7 @@ def _manifest(evaluation, metadata, function_id, timing, dispatch_mode="careful"
     }
 
 
-def measure_evaluation(evaluation, metadata, function_id, *, worker_timeout=30, deadline=None, dispatch_mode="careful"):
+def measure_evaluation(evaluation, metadata, function_id, *, worker_timeout=None, deadline=None, dispatch_mode="careful"):
     if deadline is not None and deadline - time.monotonic() <= 0.2:
         return {"schema_version": 1, "mode": "measured", "status": "failed", "recordings": [], "reason": "experiment deadline exhausted before timing"}
     workspace = Path(evaluation["workspace"])
@@ -47,15 +47,15 @@ def measure_evaluation(evaluation, metadata, function_id, *, worker_timeout=30, 
         raise ValueError("candidate source changed since correctness checks")
     prospective = _manifest(evaluation, metadata, function_id, {"mode": "prospective", "eligibility": {"eligible": False}}, dispatch_mode)
     install_artifact(workspace / "prospective-store", prospective, source, prospective=True)
-    remaining = min(worker_timeout, 20.0)
+    remaining = worker_timeout
     if deadline is not None:
-        remaining = min(remaining, deadline - time.monotonic())
-    if remaining <= 0.2:
+        remaining = deadline - time.monotonic() if remaining is None else min(remaining, deadline - time.monotonic())
+    if remaining is not None and remaining <= 0.2:
         return {"schema_version": 1, "mode": "measured", "status": "failed", "recordings": [], "reason": "experiment deadline exhausted before timing"}
     job = {
         "schema_version": 1, "identity": metadata["identity"], "contract": evaluation["contract"],
         "source_sha256": reference_job["source_sha256"], "positional_names": reference_job["positional_names"],
-        "cases": cases, "budget_seconds": remaining - 0.1,
+        "cases": cases, "budget_seconds": remaining - 0.1 if remaining is not None else None,
         "dispatch_mode": dispatch_mode,
     }
     job_path, result_path = workspace / "timing-job.json", workspace / "timing-result.json"
@@ -69,7 +69,7 @@ def measure_evaluation(evaluation, metadata, function_id, *, worker_timeout=30, 
     return timing
 
 
-def complete_evaluation(evaluation, metadata, function_id, artifact_root, *, timing_provider=None, worker_timeout=30, deadline=None, dispatch_mode="careful"):
+def complete_evaluation(evaluation, metadata, function_id, artifact_root, *, timing_provider=None, worker_timeout=None, deadline=None, dispatch_mode="careful"):
     workspace = Path(evaluation["workspace"])
     completed = {**evaluation, "correctness_only": False, "correctness_status": evaluation["status"], "dispatch_mode": dispatch_mode}
     checkpoint = workspace / "completed-evaluation.json"

@@ -21,9 +21,6 @@ from .usage import normalize_usage, estimate_cost, update_usage
 @dataclass(frozen=True)
 class SearchLimits:
     proposals: int = 3
-    function_seconds: float = 120
-    worker_seconds: float = 30
-    session_seconds: float = 300
     request_bytes: int = 128 * 1024
     response_bytes: int = 64 * 1024
     extra_cases: int = 8
@@ -120,8 +117,10 @@ def request_proposal(request, path, limits, deadline, proposer=None, *, provider
     if len(encoded) > limits.request_bytes:
         return None, "request_limit"
     write_json(path / "request.json", request)
-    remaining = min(provider.timeout if provider and provider.kind == "openai" else limits.worker_seconds, deadline - time.monotonic())
-    if remaining <= 0:
+    remaining = provider.timeout if provider and provider.kind == "openai" else None
+    if deadline is not None:
+        remaining = deadline - time.monotonic() if remaining is None else min(remaining, deadline - time.monotonic())
+    if remaining is not None and remaining <= 0:
         return None, "deadline"
     try:
         if proposer is None:
@@ -148,7 +147,7 @@ def request_proposal(request, path, limits, deadline, proposer=None, *, provider
             # Copy only the serialized provider view, never evaluator objects.
             detached = json.loads(encoded)
             response = proposer(detached["problem"], detached["history"])
-        if time.monotonic() >= deadline:
+        if deadline is not None and time.monotonic() >= deadline:
             return _billing_evidence(response, "deadline"), "deadline"
         encoded_response = json_bytes(response)
     except Exception:
@@ -193,7 +192,7 @@ def search_groups(groups, outcome, directory, report, limits, deadline, *, propo
     group_items = list(groups.items())
     stop = "proposal_limit"
     for number in range(limits.proposals):
-        if time.monotonic() >= deadline:
+        if deadline is not None and time.monotonic() >= deadline:
             stop = "deadline"
             break
         group_id, group = group_items[number % len(group_items)]
@@ -249,10 +248,10 @@ def search_groups(groups, outcome, directory, report, limits, deadline, *, propo
             else:
                 try:
                     public_case = TestCase("public-synthetic", public_arguments(group["contract"]))
-                    evaluation = evaluate_contract(group["source"], group["graph"], group["contract"], [*group["cases"], *group["mandatory"], public_case, *proposed], path / "evaluation", candidate_source=response["source"], worker_timeout=limits.worker_seconds, deadline=deadline)
+                    evaluation = evaluate_contract(group["source"], group["graph"], group["contract"], [*group["cases"], *group["mandatory"], public_case, *proposed], path / "evaluation", candidate_source=response["source"], deadline=deadline)
                     evaluation["generator"] = identity
                     evaluation.update(provider_metadata)
-                    evaluation = complete_evaluation(evaluation, group["metadata"], outcome["function_id"], directory.parent.parent, timing_provider=timing_provider, worker_timeout=limits.worker_seconds, deadline=deadline, dispatch_mode=dispatch_mode)
+                    evaluation = complete_evaluation(evaluation, group["metadata"], outcome["function_id"], directory.parent.parent, timing_provider=timing_provider, deadline=deadline, dispatch_mode=dispatch_mode)
                 except TimeoutError:
                     evaluation = {"schema_version": 1, "status": "deadline", "reason": "search deadline exhausted; Python remains in use", "generator": identity, **provider_metadata}
         safe_feedback = feedback(evaluation, diagnostics, request["problem"]["synthetic_examples"][0])

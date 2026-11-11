@@ -120,7 +120,7 @@ Install `pip install -e '.[openai]'`, configure `AGENT_OPTIMIZE_OAI_API_KEY`, an
 select live generation explicitly:
 
 ```text
-agent-optimize run --provider openai --model gpt-6.1-sol --provider-seconds 75 --max-output-tokens 4096 -- python analysis.py
+agent-optimize run --provider openai --model gpt-6.1-sol --max-output-tokens 4096 -- python analysis.py
 ```
 
 The supported models are `gpt-6.1-sol`, `gpt-6.1-terra`, and `gpt-6-luna`.
@@ -157,13 +157,13 @@ usage, budgets, and exact saved evidence identifiers.
 List cases with `python -m benchmarks.compare_models --list`. An offline smoke run:
 
 ```text
-python -m benchmarks.compare_models --provider mock --cases integer_threshold dijet_combinatorics nearest_jet_matching --events 16 --max-proposals 2
+python -m benchmarks.compare_models --provider mock --cases integer_threshold dijet_combinatorics nearest_jet_matching --events 16 --max-attempts 2
 ```
 
 For live comparison, explicitly pass `--provider openai` and repeat `--model`:
 
 ```text
-python -m benchmarks.compare_models --provider openai --model gpt-6-luna --model gpt-6.1-terra --model gpt-6.1-sol --events 1000 --max-proposals 2
+python -m benchmarks.compare_models --provider openai --model gpt-6-luna --model gpt-6.1-terra --model gpt-6.1-sol --events 1000 --max-attempts 2
 ```
 
 Each model/case/repeat gets a fresh artifact root and retains settings, source/input
@@ -256,10 +256,9 @@ reference files; it excludes report bookkeeping and interpreter/reference-functi
 allocations. Copying uses bounded temporary chunks. These bounds do not limit the
 analysis function's own memory use.
 
-Search defaults are three proposals per function shared across input contracts,
-120 seconds per function, 30 seconds per worker capped by remaining time, and
-300 seconds total search time. Host preparation and comparison check the same
-deadline between bounded units of work. Requests are limited to 128 KiB, responses
+Search defaults to three replacement-code attempts per function, shared across
+input contracts. Model requests have a fixed 60-second timeout. Local checking,
+timing and the overall optimization have no time limits. Requests are limited to 128 KiB, responses
 to 64 KiB, and extra-case proposals to eight. The evaluator alone builds additional
 `zeros`, bounded `lengths`, or known-field `boundaries` cases; mandatory cases remain
 in force. Effective limits are printed before the command starts. See

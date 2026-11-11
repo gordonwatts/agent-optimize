@@ -28,7 +28,7 @@ def contains_credential(value, key):
 class ProviderSettings:
     kind: str = "mock"
     model: str = "gpt-6.1-sol"
-    timeout: float = 30
+    timeout: float = 60
     max_output_tokens: int = 4096
 
     def __post_init__(self):

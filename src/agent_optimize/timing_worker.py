@@ -18,7 +18,7 @@ from .timing import MIN_BATCHES, MIN_SAMPLES
 
 
 def _measure(function, args, kwargs, iterations, deadline):
-    if time.monotonic() >= deadline:
+    if deadline is not None and time.monotonic() >= deadline:
         raise TimeoutError("timing deadline exhausted")
     started = time.perf_counter_ns()
     for _ in range(iterations):
@@ -55,7 +55,7 @@ def measure_job(path):
     replacement = optimize(reference)
     clear_dispatch_cache()
     contract = contract_from_dict(job["contract"])
-    deadline = time.monotonic() + job["budget_seconds"]
+    deadline = time.monotonic() + job["budget_seconds"] if job.get("budget_seconds") is not None else None
     stats, recordings = {}, []
     compilation_ns = first_use_ns = reference_first_use_ns = 0
     with observe_dispatch(stats, allow_prospective=True):

@@ -51,7 +51,6 @@ Install the generic CLI once, with uv available on PATH:
 uv tool install git+https://github.com/gordonwatts/agent-optimize.git
 agent-optimize run \
   --artifact-root .agent-optimize/q16 --verification-groups 2 \
-  --worker-seconds 60 --function-seconds 240 --search-seconds 300 \
   examples/q16_ttbar.py --n-files 1 --output-dir plots/q16
 ```
 
@@ -151,8 +150,7 @@ was unused, which explains the report's one-function count.
 The sample uses a deterministic local generator, so it reports zero model API
 tokens and charges for this run. The original function and compiled replacement
 are genuinely measured; code generation is a local demonstration of the search
-and feedback process. Model-based searches have their own API cost. The sample
-includes a full delivered-file command; `--n-files 0`, without `--input-file`,
+and feedback process. Model-based searches have their own API cost. The sample uses the same generic report template as other analyses; `--n-files 0`, without `--input-file`,
 instead requests the entire ServiceX dataset. Its timing table covers only the
 two recorded function inputs; the full-reconstruction measurements below are
 separate. Reference agreement does not establish physics validity; the mean

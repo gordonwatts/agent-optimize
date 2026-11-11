@@ -43,7 +43,7 @@ def test_child_failure_status_is_preserved(tmp_path):
 
 
 def test_json_configuration_errors_remain_machine_readable(capsys):
-    assert main(["run", "--json", "--max-calls", "not-an-integer"]) == 2
+    assert main(["run", "--json", "--verification-groups", "not-an-integer"]) == 2
     captured = capsys.readouterr()
     result = json.loads(captured.out)
     assert result["status"] == "error"
@@ -52,14 +52,14 @@ def test_json_configuration_errors_remain_machine_readable(capsys):
 
 
 def test_help_and_unknown_option_exit_status(capsys, monkeypatch):
-    # Give Rich enough width to display full option names and their aliases.
+    # Give Rich enough width to display full option names.
     monkeypatch.setenv("COLUMNS", "160")
     with pytest.raises(SystemExit) as help_exit:
         main(["run", "--help"])
     assert help_exit.value.code == 0
     help_text = re.sub(r"\[[0-9;]*m", "", capsys.readouterr().out)
     assert "--verification-groups" in help_text and "--max-attempts" in help_text
-    assert "--max-calls" in help_text and "--max-proposals" in help_text
+    assert "--max-calls" not in help_text and "--max-proposals" not in help_text
     with pytest.raises(SystemExit) as invalid_exit:
         main(["run", "--unknown-option"])
     assert invalid_exit.value.code == 2
@@ -77,7 +77,7 @@ def test_launch_failure_has_actionable_message(tmp_path, capsys):
     assert "could not launch command" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("option,value", [("--max-proposals", "0"), ("--function-seconds", "nan"), ("--worker-seconds", "-1"), ("--search-seconds", "inf"), ("--max-request-bytes", "0"), ("--max-response-bytes", "0"), ("--max-extra-cases", "33")])
+@pytest.mark.parametrize("option,value", [("--max-attempts", "0"), ("--max-request-bytes", "0"), ("--max-response-bytes", "0"), ("--max-extra-cases", "33")])
 def test_invalid_search_limits_are_configuration_errors(option, value):
     with pytest.raises(SystemExit) as caught:
         main(["run", option, value, "--", sys.executable, "-c", "pass"])
@@ -115,14 +115,19 @@ def test_documented_example_ordinary_and_launched_results_match(tmp_path):
     assert [path.name for path in tmp_path.iterdir()] == [".agent-optimize"]
 
 
-@pytest.mark.parametrize("group_flag", ["--verification-groups", "--max-calls"])
-@pytest.mark.parametrize("attempt_flag", ["--max-attempts", "--max-proposals"])
-def test_verification_and_attempt_option_aliases(group_flag, attempt_flag):
+def test_verification_and_attempt_options_and_default():
     from agent_optimize.cli import _parse
-    options = _parse(["run", group_flag, "2", attempt_flag, "4", "--", "python", "analysis.py"])
-    assert options.max_calls == 2
-    assert options.max_proposals == 4
-    assert _parse(["run", "--", "python", "analysis.py"]).max_proposals == 3
+    options = _parse(["run", "--verification-groups", "2", "--max-attempts", "4", "--", "python", "analysis.py"])
+    assert options.verification_groups == 2
+    assert options.max_attempts == 4
+    assert _parse(["run", "--", "python", "analysis.py"]).max_attempts == 3
+
+
+@pytest.mark.parametrize("old_option", ["--max-calls", "--max-proposals"])
+def test_old_option_names_are_not_accepted(old_option):
+    from agent_optimize.cli import ConfigurationError, _parse
+    with pytest.raises(ConfigurationError, match="No such option"):
+        _parse(["run", old_option, "2", "--", "python", "analysis.py"])
 
 
 @pytest.mark.parametrize("option", ["--verification-groups", "--max-attempts"])
@@ -130,3 +135,10 @@ def test_new_option_names_reject_zero(option):
     with pytest.raises(SystemExit) as caught:
         main(["run", option, "0", "--", sys.executable, "-c", "pass"])
     assert caught.value.code == 2
+
+
+@pytest.mark.parametrize("old_option", ["--function-seconds", "--worker-seconds", "--search-seconds", "--provider-seconds"])
+def test_timeout_options_are_removed(old_option):
+    from agent_optimize.cli import ConfigurationError, _parse
+    with pytest.raises(ConfigurationError, match="No such option"):
+        _parse(["run", old_option, "60", "--", "python", "analysis.py"])

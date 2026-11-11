@@ -31,7 +31,7 @@ The analysis runs once; report generation reads its retained evidence.
 `--verification-groups 2` saves up to two real-data groups per function for
 correctness checks and timing; these appear as verification groups 1 and 2 in
 the report. `--max-attempts` limits replacement-code attempts per function and
-defaults to three. The old names `--max-calls` and `--max-proposals` remain aliases.
+defaults to three.
 
 The report starts with original-versus-replacement function timings and the
 speedup, followed by the elapsed time and API cost needed to obtain the result.
@@ -449,8 +449,8 @@ Buffers are written incrementally with bounded temporary chunks; inputs are neve
 silently truncated or packed into a full extra copy. This bounds snapshot storage
 and copying, not the reference function's own allocations. A session lock shares
 budgets between recording processes. A crashed lock owner causes later calls to
-fall back after a bounded wait. Worker replay has a 30-second per-call timeout;
-worker output is bounded to 64 KiB, and provider credentials and the recording
+fall back after a bounded wait. Replay and correctness checks have no execution
+time limit. Worker output is bounded to 64 KiB, and provider credentials and the recording
 marker are removed from worker environments. Process separation is not a sandbox
 for hostile code.
 
@@ -496,10 +496,8 @@ costs are reported separately.
 
 Every batch on every retained recording must improve its median by at least 10%.
 The candidate's upper quartile must also be at least 10% below the reference's
-lower quartile; uncertainty, regression, missing evidence, or an exhausted deadline
-keeps Python in use. Per-function experiments have a 120-second deadline; workers
-have a 30-second maximum and timing uses at most 20 seconds of the remaining
-budget. Small workloads may provide no eligible improvement. Timing claims apply
+lower quartile; uncertainty, regression or missing evidence keeps Python in use.
+There is no function, worker or overall optimization time limit. Small workloads may provide no eligible improvement. Timing claims apply
 only to the measured workloads. Tests use explicitly labelled
 `controlled-test-fixture` timing records to prove acceptance paths without making
 performance claims; ordinary CLI runs use measured timings.
@@ -535,15 +533,15 @@ examples, and sanitized diagnostics. Recorded arrays, scalars, worker exceptions
 and recording-derived counterexamples never enter provider requests or feedback.
 Local request/response files are retained alongside each proposal's evaluation.
 
-Defaults are three proposals per function (shared across its input contracts),
-120 seconds per function, 30 seconds per worker capped by the remaining deadline,
-and 300 seconds for the session search. Requests are limited to 128 KiB, responses
+The default is three replacement-code attempts per function, shared across its
+input contracts. Model requests have a fixed 60-second timeout; local checking,
+timing and the overall optimization have no time limits. Requests are limited to 128 KiB, responses
 to 64 KiB, and proposed extra cases to eight per proposal. Extra cases use only
 `zeros`, bounded `lengths`, or a known field's `boundaries`; the evaluator builds
 them without executing provider test code and retains every mandatory test.
 Each completed proposal and the session report are atomically checkpointed before
 another proposal is requested. Interruptions and later failures preserve earlier
-completed evaluations and saved artifacts. Proposal count, deadlines, byte limits,
+completed evaluations and saved artifacts. Attempt count, byte limits,
 and case count can be overridden with the corresponding `run --help` options;
 effective limits are printed before the command starts.
 
@@ -552,7 +550,7 @@ effective limits are printed before the command starts.
 Install `pip install -e '.[openai]'` and select `--provider openai` explicitly:
 
 ```text
-agent-optimize run --provider openai --model gpt-6.1-sol --provider-seconds 75 --max-output-tokens 4096 -- python analysis.py
+agent-optimize run --provider openai --model gpt-6.1-sol --max-output-tokens 4096 -- python analysis.py
 ```
 
 Supported IDs are `gpt-6.1-sol`, `gpt-6.1-terra`, and `gpt-6-luna`. Configure
@@ -560,7 +558,7 @@ Supported IDs are `gpt-6.1-sol`, `gpt-6.1-terra`, and `gpt-6-luna`. Configure
 Credential precedence is `--api-key` > the named environment variable > project
 root `.env` > user home `~/.env`; `OPENAI_API_KEY` alone is not used. A key's
 presence never enables live mode. The official SDK uses `responses.parse` with
-a Pydantic schema, retries disabled, a deadline-capped timeout, bounded output
+a Pydantic schema, retries disabled, a fixed 60-second model-request timeout, bounded output
 tokens, the official endpoint, and `store=False`. Reports/manifests identify the
 model and settings and retain allowlisted usage. Refusal, incomplete output,
 malformed output, transport failure, and timeout are reported separately.
@@ -584,13 +582,13 @@ List the synthetic comparison cases with `python -m benchmarks.compare_models
 --list`. A small offline smoke run uses:
 
 ```text
-python -m benchmarks.compare_models --provider mock --cases integer_threshold dijet_combinatorics nearest_jet_matching --events 16 --max-proposals 2
+python -m benchmarks.compare_models --provider mock --cases integer_threshold dijet_combinatorics nearest_jet_matching --events 16 --max-attempts 2
 ```
 
 Reproduce the small live comparison settings with:
 
 ```text
-python -m benchmarks.compare_models --provider openai --model gpt-6-luna --model gpt-6.1-terra --model gpt-6.1-sol --events 1000 --seed 20261106 --repeats 1 --max-proposals 2 --provider-seconds 75 --max-output-tokens 4096 --function-seconds 180 --search-seconds 210 --worker-seconds 40 --run-seconds 300
+python -m benchmarks.compare_models --provider openai --model gpt-6-luna --model gpt-6.1-terra --model gpt-6.1-sol --events 1000 --seed 20261106 --repeats 1 --max-attempts 2 --max-output-tokens 4096
 ```
 
 For the larger follow-up, add `--cases multi_field_regions`, set `--events
