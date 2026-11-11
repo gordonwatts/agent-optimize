@@ -258,3 +258,20 @@ supplied script reported a one-file mean of 1537.14 GeV, outside q16's stated
 reconstructed 7,552 selected events with a mean of 1537.14 GeV. Agreement with
 that benchmark remains unresolved; optimizing the existing reconstruction does
 not resolve it.
+
+
+### Live model trial through ServiceX
+
+The [live q16 report](examples/q16-live-report.md) records an actual ServiceX
+transformation/download and a Sol 6.1 search. The analysis processed 7,552 selected
+events from one delivered file and retained two verification groups from 235
+function calls. The first model response used 7,771 reported tokens, with a
+frozen estimated cost of USD 0.0352885. Its code failed two nonfinite edge-case
+checks. The next two requests exceeded the fixed 60-second timeout and returned
+no usage evidence. The token and cost totals are therefore explicitly partial;
+the unknown requests are not counted as free.
+
+No Numba function was accepted, so this trial reports no Numba speedup and leaves
+the original Python function in use. A longer model-request timeout is the next
+proposed experiment; it has not been run. The successful local-generator sample
+above remains a separate demonstration.

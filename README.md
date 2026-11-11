@@ -40,7 +40,10 @@ distinguishes recorded inputs from generated correctness checks. Each optimized
 function shows its frozen Python reference, a visible `@optimize` marker and
 the saved Numba code. Compilation and first use are included in optimization time.
 Unsupported or unsuccessful functions explain why Python remains in use.
-See the [real q16 sample report](docs/examples/q16-report.md). Generate an offline
+See the [real q16 sample report](docs/examples/q16-report.md). The
+[live model trial report](docs/examples/q16-live-report.md) records real token
+usage and partial cost evidence from a ServiceX run; no Numba function was
+accepted in that trial. Generate an offline
 q16 example with:
 
 ```sh
