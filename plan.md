@@ -36,10 +36,15 @@ including compilation. This is now the CLI default with a 128-entry override.
 Three shared synthetic workloads, profiles, startup/RSS, unsupported cases and
 the adapted-auto-opt methodology are recorded in docs/examples/workflow-comparison.md.
 
-Branch `codex/q16-workflow-comparison` is based on the current reporting draft
-branch at `9c9004a`; changes will be proposed as a separate stacked draft. Final
-offline regression and documentation checks are in progress. No new model API
-requests were made. No technical blocker prevents these validation checks.
+Remote reconciliation confirmed PR #8 was squash-merged on November 11 as
+`e4a537b`; its old branch is deleted. The November 10 status below is historical.
+Branch `codex/q16-workflow-comparison` incorporates current main and is proposed
+in [draft PR #10](https://github.com/gordonwatts/agent-optimize/pull/10), with
+`fix #9`. It contains only the new investigation/optimization diff. Full Windows
+offline regression passed 424 tests, with 2 skipped and 1 live test deselected;
+strict documentation and the actual cached-input standalone CLI passed.
+Cross-platform CI is in progress. No new model API requests were made. No
+technical blocker prevents completing CI validation. Keep PR #10 draft.
 
 ## Current project work (November 10, 2026)
 

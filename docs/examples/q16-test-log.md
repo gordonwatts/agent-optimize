@@ -13,6 +13,8 @@
 - Compiler scheduling hoists reusable arithmetic and calculates the final mass
   only when the winning assignment changes. Fresh generation passed 108/108
   checks; ordinary saved dispatch was observed on all real-data events.
+- Full Windows offline suite: **424 passed, 2 skipped, 1 live test deselected**.
+  Strict documentation build and standalone cached-input CLI passed.
 - Larger read groups reduce repeated call overhead. The q16 CLI exposes
   `--events-per-read`, default 1,024. Actual ROOT reading yielded 30 groups with
   exactly unchanged selected inputs: **0.0322 s warm saved dispatch**, **3.629 s
