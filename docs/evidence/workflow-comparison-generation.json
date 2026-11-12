@@ -1,0 +1,327 @@
+{
+  "run_timing": {
+    "analysis_seconds": 1.553003799985163,
+    "controller_seconds": 18.507632099994225,
+    "optimization_seconds": 16.539367399993353
+  },
+  "limits": {
+    "max_calls_per_function": 2,
+    "max_capture_bytes": 67108864
+  },
+  "search_limits": {
+    "extra_cases": 8,
+    "proposals": 3,
+    "request_bytes": 131072,
+    "response_bytes": 65536
+  },
+  "provider": {
+    "identity": "filter-sum-feedback-v1",
+    "kind": "mock"
+  },
+  "usage_summary": {
+    "attempts": 3,
+    "cost": {
+      "currency": "USD",
+      "estimated_total_usd": "0",
+      "known_estimated_usd": "0",
+      "status": "not_applicable",
+      "unpriced_attempts": 0
+    },
+    "coverage": {
+      "cache_write_input_tokens": {
+        "complete": true,
+        "reported_attempts": 3
+      },
+      "cached_input_tokens": {
+        "complete": true,
+        "reported_attempts": 3
+      },
+      "input_tokens": {
+        "complete": true,
+        "reported_attempts": 3
+      },
+      "output_tokens": {
+        "complete": true,
+        "reported_attempts": 3
+      },
+      "reasoning_output_tokens": {
+        "complete": true,
+        "reported_attempts": 3
+      },
+      "total_tokens": {
+        "complete": true,
+        "reported_attempts": 3
+      }
+    },
+    "functions": [
+      {
+        "attempts": 0,
+        "cost": {
+          "currency": "USD",
+          "estimated_total_usd": "0",
+          "known_estimated_usd": "0",
+          "status": "not_applicable",
+          "unpriced_attempts": 0
+        },
+        "coverage": {
+          "cache_write_input_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "cached_input_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "input_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "output_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "reasoning_output_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "total_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          }
+        },
+        "function_id": "4412064cdd51a3401015de8d",
+        "name": "dijet_combinatorics",
+        "requests": {
+          "known_count": 0,
+          "total": 0,
+          "unknown_attempts": 0
+        },
+        "tokens": {
+          "cache_write_input_tokens": 0,
+          "cached_input_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 0
+        }
+      },
+      {
+        "attempts": 3,
+        "cost": {
+          "currency": "USD",
+          "estimated_total_usd": "0",
+          "known_estimated_usd": "0",
+          "status": "not_applicable",
+          "unpriced_attempts": 0
+        },
+        "coverage": {
+          "cache_write_input_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "cached_input_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "input_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "output_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "reasoning_output_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "total_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          }
+        },
+        "function_id": "a9871a01013f8e99c0ce25d2",
+        "name": "central_ht",
+        "requests": {
+          "known_count": 0,
+          "total": 0,
+          "unknown_attempts": 0
+        },
+        "tokens": {
+          "cache_write_input_tokens": 0,
+          "cached_input_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 0
+        }
+      },
+      {
+        "attempts": 0,
+        "cost": {
+          "currency": "USD",
+          "estimated_total_usd": "0",
+          "known_estimated_usd": "0",
+          "status": "not_applicable",
+          "unpriced_attempts": 0
+        },
+        "coverage": {
+          "cache_write_input_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "cached_input_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "input_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "output_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "reasoning_output_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          },
+          "total_tokens": {
+            "complete": true,
+            "reported_attempts": 0
+          }
+        },
+        "function_id": "e1333da43dfdc5896d2bef91",
+        "name": "nearest_jet_matching",
+        "requests": {
+          "known_count": 0,
+          "total": 0,
+          "unknown_attempts": 0
+        },
+        "tokens": {
+          "cache_write_input_tokens": 0,
+          "cached_input_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 0
+        }
+      }
+    ],
+    "models": [
+      {
+        "attempts": 3,
+        "cost": {
+          "currency": "USD",
+          "estimated_total_usd": "0",
+          "known_estimated_usd": "0",
+          "status": "not_applicable",
+          "unpriced_attempts": 0
+        },
+        "coverage": {
+          "cache_write_input_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "cached_input_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "input_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "output_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "reasoning_output_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          },
+          "total_tokens": {
+            "complete": true,
+            "reported_attempts": 3
+          }
+        },
+        "model": "none",
+        "provider": "mock",
+        "requests": {
+          "known_count": 0,
+          "total": 0,
+          "unknown_attempts": 0
+        },
+        "tokens": {
+          "cache_write_input_tokens": 0,
+          "cached_input_tokens": 0,
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 0
+        }
+      }
+    ],
+    "requests": {
+      "known_count": 0,
+      "total": 0,
+      "unknown_attempts": 0
+    },
+    "schema_version": 1,
+    "tokens": {
+      "cache_write_input_tokens": 0,
+      "cached_input_tokens": 0,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "reasoning_output_tokens": 0,
+      "total_tokens": 0
+    }
+  },
+  "functions": [
+    {
+      "identity": {
+        "first_line": 54,
+        "module": "benchmarks.workloads",
+        "qualified_name": "dijet_combinatorics",
+        "source_file": "C:\\Users\\gwatts\\.codex\\worktrees\\q16-reconstruction\\agent-optimize\\benchmarks\\workloads.py"
+      },
+      "status": "unsupported",
+      "captured_calls": 0,
+      "skipped": {
+        "unsupported": {
+          "count": 2,
+          "diagnostic": "helper calls, methods, and external side effects are unsupported"
+        }
+      },
+      "reason": "no usable calls captured; inspect skipped-capture diagnostics"
+    },
+    {
+      "identity": {
+        "first_line": 26,
+        "module": "benchmarks.workloads",
+        "qualified_name": "central_ht",
+        "source_file": "C:\\Users\\gwatts\\.codex\\worktrees\\q16-reconstruction\\agent-optimize\\benchmarks\\workloads.py"
+      },
+      "status": "optimized",
+      "captured_calls": 2,
+      "skipped": {},
+      "reason": "eligible fast implementation saved; run the script normally to reuse it"
+    },
+    {
+      "identity": {
+        "first_line": 62,
+        "module": "benchmarks.workloads",
+        "qualified_name": "nearest_jet_matching",
+        "source_file": "C:\\Users\\gwatts\\.codex\\worktrees\\q16-reconstruction\\agent-optimize\\benchmarks\\workloads.py"
+      },
+      "status": "unsupported",
+      "captured_calls": 0,
+      "skipped": {
+        "unsupported": {
+          "count": 2,
+          "diagnostic": "helper calls, methods, and external side effects are unsupported"
+        }
+      },
+      "reason": "no usable calls captured; inspect skipped-capture diagnostics"
+    }
+  ]
+}

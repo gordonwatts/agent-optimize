@@ -23,7 +23,8 @@ def example():
     return module
 
 
-def test_transformed_root_input_preserves_values_and_numeric_layout(tmp_path):
+@pytest.mark.parametrize("step_size", [1, 3, 128, 1024])
+def test_transformed_root_input_preserves_values_and_numeric_layout(tmp_path, step_size):
     module = example()
     jets, lepton, mx, my = next(module.synthetic_batches(4))
     branches = {f"jet_{field}": jets[field] for field in jets.fields}
@@ -34,9 +35,11 @@ def test_transformed_root_input_preserves_values_and_numeric_layout(tmp_path):
     filename = tmp_path / "delivered.root"
     with uproot.recreate(filename) as output:
         output.mktree("tree", branches)
-    batches = list(module.read_events([filename]))
-    assert len(batches) == 1
-    assert np.array_equal(ak.to_numpy(module.reconstruct(*batches[0])), ak.to_numpy(module.reconstruct(jets, lepton, mx, my)))
+    batches = list(module.read_events([filename], step_size=step_size))
+    actual = np.concatenate([ak.to_numpy(module.reconstruct(*batch)) for batch in batches])
+    expected = ak.to_numpy(module.reconstruct(jets, lepton, mx, my))
+    assert actual.dtype == expected.dtype
+    assert actual.tobytes() == expected.tobytes()
 
 
 def test_standalone_synthetic_cli_creates_plot_without_servicex(tmp_path):

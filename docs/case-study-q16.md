@@ -8,6 +8,13 @@ distinct four-jet assignment. The winning assignment minimizes
 `abs(m_had - 172.5) + abs(m_lep - 172.5)`. The output is one reconstructed
 top-pair mass per selected event and `plot_1.png`.
 
+The November 12 [source and workflow investigation](examples/workflow-comparison.md)
+measures additional raw-source and compiler improvements. The CLI now reads
+1,024 ROOT entries at a time before selection; use `--events-per-read 128` to
+reproduce the smaller input groups used by the historical results below. Larger
+groups reduce repeated array/dispatch overhead while increasing reference-path
+memory use. The numerical reconstruction boundary is unchanged.
+
 The analysis has two different costs: constructing the candidate assignments,
 and scoring those candidates. The current example optimizes both stages, together with neutrino reconstruction.
 ServiceX delivery, ROOT reading, event packing and plotting remain outside the

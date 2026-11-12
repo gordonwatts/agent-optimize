@@ -196,7 +196,7 @@ def four_vectors(arrays, prefix):
                    for component in ("px", "py", "pz", "e")})
 
 
-def read_events(files):
+def read_events(files, step_size=128):
     import uproot
 
     # ServiceX's ROOT tree is named `tree`; use its sole TTree if that changes.
@@ -208,7 +208,7 @@ def read_events(files):
                 root_file[k] for k in root_file.keys() if hasattr(root_file[k], "arrays")
             )
             # Bound memory while vectorizing both events and their assignments.
-            for arrays in tree.iterate(branches, step_size=128, library="ak"):
+            for arrays in tree.iterate(branches, step_size=step_size, library="ak"):
                 jets = four_vectors(arrays, "jet")
                 leptons = ak.concatenate(
                     [four_vectors(arrays, "ele"), four_vectors(arrays, "mu")], axis=1
@@ -228,6 +228,10 @@ def main(
         help="Optional ServiceX config path (useful for a Windows config from WSL).",
     ),
     synthetic_events: int = typer.Option(0, min=0, help="Offline synthetic selected events; no ServiceX."),
+    events_per_read: int = typer.Option(
+        1024, min=1,
+        help="ROOT entries per read before selection; larger groups use more memory. Use 128 for smaller groups.",
+    ),
     input_file: list[Path] | None = typer.Option(
         None, "--input-file", exists=True, dir_okay=False, readable=True,
         help="Previously delivered query ROOT file; repeat for multiple files.",
@@ -250,7 +254,7 @@ def main(
         files = [str(p) for p in result["ttbar_semileptonic"]]
     if not files:
         raise RuntimeError("ServiceX delivered no files")
-    batches = synthetic_batches(synthetic_events) if synthetic_events else read_events(files)
+    batches = synthetic_batches(synthetic_events) if synthetic_events else read_events(files, step_size=events_per_read)
     chunks = [ak.to_numpy(reconstruct(*batch)) for batch in batches]
     if not chunks:
         raise RuntimeError("No events passed the requested baseline selections")

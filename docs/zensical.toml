@@ -13,6 +13,7 @@ nav = [
   { "User guide" = "index.md" },
   { "Platform verification" = "verification.md" },
   { "Case study: q16 in WSL2" = "case-study-q16.md" },
+  { "Optimization workflow comparison" = "examples/workflow-comparison.md" },
   { "Optional OpenAI provider" = "live-provider.md" },
   { "First round workflow" = "ux-first-round.md" },
   { "Implementation notes" = "implementation-notes.md" },

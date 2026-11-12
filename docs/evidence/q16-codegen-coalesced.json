@@ -1,0 +1,83 @@
+{
+  "environment": {
+    "python": "3.13.14",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "awkward": "2.14.0",
+    "numpy": "2.5.4",
+    "numba": "0.68.1"
+  },
+  "events": 7552,
+  "groups": 30,
+  "original_groups": 235,
+  "coalesce_groups": 8,
+  "repeats": 3,
+  "baseline_commit": "9c9004ae08a0725d45f7262ff00ab262fcaa847d",
+  "input_sha256": "bd3ecc50194dc836bf0e8f9f7201fc000309644fc9ad0f8f3cc4dea5e3bc5a50",
+  "reference_sha256": "f8591358d9bd3b09d77291fcd6f82ae5bc7051268a389918301b04f08b5de502",
+  "generator_before_sha256": "a36de241b2e2022d6f8ac6a4ff580f4fff539dd5d7f9f59ab0f7087d96bedcad",
+  "generator_scheduled_sha256": "413fa178d4750307eaa5c5819b8f6bae47008dfccbcb92f95ca50016dbab39a6",
+  "benchmark_source_sha256": "9d7f7bd41916e48e80a9c877f4fe471e980c3a1dee0fe309487165ac5318ddbe",
+  "source_sha256": {
+    "before": "f0c897b655a5f394872cf75b148d804a0d0b005cf1cfacf546b8e58e0f1de8bf",
+    "scheduled": "64a9e9735d874c56675ab3467de9fbef46358ecfc9b58d8b596d40352a3eb0f3"
+  },
+  "first_full_pass_seconds": {
+    "before": 3.4551319000020158,
+    "scheduled": 3.2638246999995317,
+    "before_fast_adapter": 3.419808600010583,
+    "scheduled_fast_adapter": 3.219214099983219
+  },
+  "full_reconstruction_seconds": {
+    "original": [
+      0.9501047999947332,
+      0.9845544999989215,
+      1.0353685999871232
+    ],
+    "before": [
+      0.0491805000056047,
+      0.04906799999298528,
+      0.05363729997770861
+    ],
+    "scheduled": [
+      0.04019420000258833,
+      0.03997520002303645,
+      0.04885790002299473
+    ],
+    "before_fast_adapter": [
+      0.0388329999987036,
+      0.04191919998265803,
+      0.050401999993482605
+    ],
+    "scheduled_fast_adapter": [
+      0.030244699999457225,
+      0.030394000001251698,
+      0.03420470000128262
+    ]
+  },
+  "full_median_seconds": {
+    "original": 0.9845544999989215,
+    "before": 0.0491805000056047,
+    "scheduled": 0.04019420000258833,
+    "before_fast_adapter": 0.04191919998265803,
+    "scheduled_fast_adapter": 0.030394000001251698
+  },
+  "kernel_only_seconds": {
+    "before": [
+      0.026078800001414493,
+      0.02534590000868775,
+      0.026395399996545166
+    ],
+    "scheduled": [
+      0.013882300001569092,
+      0.013648699998157099,
+      0.015638799988664687
+    ]
+  },
+  "kernel_only_median_seconds": {
+    "before": 0.026078800001414493,
+    "scheduled": 0.013882300001569092
+  },
+  "all_real_outputs_bitwise_exact": true,
+  "api_requests": 0,
+  "scope": "full reconstruction includes packing, adaptation, native loop and output wrapping; before/scheduled use checked adapt_inputs; *_fast_adapter use generated unchecked fast adapter, without dispatch lookup; excludes data loading/imports and first compilation; component kernel-only uses preadapted packed arrays; original option outputs compared as NumPy values, compiled outputs also strictly compared with revised reference"
+}

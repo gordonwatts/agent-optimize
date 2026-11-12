@@ -1,0 +1,269 @@
+{
+  "measured_at_utc": "2026-11-12T16:47:31.779968+00:00",
+  "project_baseline_commit": "9c9004ae08a0725d45f7262ff00ab262fcaa847d",
+  "auto_opt_source_commit": "56cbad7d561097037eefaecc5440268d83c6b9a3",
+  "environment": {
+    "python": "3.13.14",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "awkward": "2.14.0",
+    "numpy": "2.5.4",
+    "numba": "0.68.1"
+  },
+  "events": 8192,
+  "input_sha256": "162b5d588a7ffd15b22499b4925c8aec09efbfe0834382b6f6902a6221acfe47",
+  "repeats": 11,
+  "source_sha256": "5cff81dd8d560d78878d58f347e6eb78220c73b7c8c1098cb1ecf42192808a2e",
+  "scope": "in-memory full function including ordinary dispatch/output wrapping; excludes generation and imports",
+  "method": "adapted auto-opt workflow with agent-written Numba loops versus deterministic mock agent-optimize generation; not equal model/budget comparison",
+  "results": {
+    "central_ht": {
+      "loop_exact_main": true,
+      "loop_verification_passed": 19,
+      "loop_verification_total": 19,
+      "scalar_verification_passed": 4,
+      "scalar_verification_total": 4,
+      "threshold_verification_passed": null,
+      "threshold_first_call_seconds": null,
+      "dispatch_exact": true,
+      "dispatch_observed": {
+        "used": true,
+        "compilation_ns": 110790400,
+        "artifact_id": "e8abca29acbb487b9020123c731e2e83",
+        "dispatch_mode": "fast"
+      },
+      "loop_first_call_seconds": 0.28154920000815764,
+      "dispatch_first_call_seconds": 0.11499060000642203,
+      "warm_seconds": {
+        "python": [
+          0.0017986999882850796,
+          0.0016897000023163855,
+          0.0016389999946113676,
+          0.0016691999917384237,
+          0.0016416000144090503,
+          0.0016990999865811318,
+          0.0016374000115320086,
+          0.0016968999989330769,
+          0.001648000004934147,
+          0.0016938000044319779,
+          0.0016447000089101493
+        ],
+        "adapted_auto_opt_loop": [
+          0.00035149999894201756,
+          0.00032660001306794584,
+          0.0003546999942045659,
+          0.00034589998540468514,
+          0.0003921999887097627,
+          0.0003440000000409782,
+          0.00036200002068653703,
+          0.0003282999969087541,
+          0.00035659997956827283,
+          0.00033069998607970774,
+          0.00035559997195377946
+        ],
+        "agent_optimize_dispatch": [
+          0.0002883999841287732,
+          0.0002756999747361988,
+          0.00028830001247115433,
+          0.00027650000993162394,
+          0.00029090000316500664,
+          0.00028569999267347157,
+          0.0002874999772757292,
+          0.00027570000384002924,
+          0.0002896999940276146,
+          0.0002759000053629279,
+          0.0002896000223699957
+        ]
+      },
+      "warm_median_seconds": {
+        "python": 0.0016691999917384237,
+        "adapted_auto_opt_loop": 0.00035149999894201756,
+        "agent_optimize_dispatch": 0.0002874999772757292
+      },
+      "output_sha256": "cd83afa89a1fd4157b474e9b60c611cb6b6e867ec47f5cc1f114106dc31c8702",
+      "isolated_process_memory_including_imports_and_jit": {
+        "python": {
+          "first_function_call_seconds": 0.0026892999885603786,
+          "peak_process_rss_bytes": 98557952
+        },
+        "loop": {
+          "first_function_call_seconds": 0.26823929999955,
+          "peak_process_rss_bytes": 146255872
+        },
+        "dispatch": {
+          "first_function_call_seconds": 0.25224509998224676,
+          "peak_process_rss_bytes": 144662528
+        }
+      }
+    },
+    "dijet_combinatorics": {
+      "loop_exact_main": true,
+      "loop_verification_passed": 19,
+      "loop_verification_total": 19,
+      "scalar_verification_passed": 4,
+      "scalar_verification_total": 4,
+      "threshold_verification_passed": null,
+      "threshold_first_call_seconds": null,
+      "dispatch_exact": true,
+      "dispatch_observed": {
+        "used": false
+      },
+      "loop_first_call_seconds": 0.07370999999693595,
+      "dispatch_first_call_seconds": 0.008272500010207295,
+      "warm_seconds": {
+        "python": [
+          0.007151099998736754,
+          0.007459499989636242,
+          0.007877900003222749,
+          0.0073158000013791025,
+          0.00713250000262633,
+          0.0072401000070385635,
+          0.007324200007133186,
+          0.006991900008870289,
+          0.007185900001786649,
+          0.006984600011492148,
+          0.0070235999883152544
+        ],
+        "adapted_auto_opt_loop": [
+          0.00042199998279102147,
+          0.0003842000151053071,
+          0.0004236000240780413,
+          0.0004194999928586185,
+          0.0003539999888744205,
+          0.00038869999116286635,
+          0.0003921999887097627,
+          0.00036689999978989363,
+          0.00038690000656060874,
+          0.0003859999997075647,
+          0.00034729999606497586
+        ],
+        "agent_optimize_dispatch": [
+          0.00809109999681823,
+          0.008035499980906025,
+          0.008473800000501797,
+          0.008042700006626546,
+          0.007979700021678582,
+          0.008016500010853633,
+          0.007866500003729016,
+          0.007805400004144758,
+          0.0077609000145457685,
+          0.007881499972427264,
+          0.007736800005659461
+        ]
+      },
+      "warm_median_seconds": {
+        "python": 0.007185900001786649,
+        "adapted_auto_opt_loop": 0.00038690000656060874,
+        "agent_optimize_dispatch": 0.007979700021678582
+      },
+      "output_sha256": "a3167e2d9162470f23ad64ed7f3687def27b68959cb1c3059bb1d2582991fea8",
+      "isolated_process_memory_including_imports_and_jit": {
+        "python": {
+          "first_function_call_seconds": 0.007737499981885776,
+          "peak_process_rss_bytes": 106696704
+        },
+        "loop": {
+          "first_function_call_seconds": 0.2773215000052005,
+          "peak_process_rss_bytes": 146288640
+        },
+        "dispatch": {
+          "first_function_call_seconds": 0.00963939999928698,
+          "peak_process_rss_bytes": 107048960
+        }
+      }
+    },
+    "nearest_jet_matching": {
+      "loop_exact_main": true,
+      "loop_verification_passed": 19,
+      "loop_verification_total": 19,
+      "scalar_verification_passed": 4,
+      "scalar_verification_total": 4,
+      "threshold_verification_passed": true,
+      "threshold_first_call_seconds": 0.07975400000577793,
+      "dispatch_exact": true,
+      "dispatch_observed": {
+        "used": false
+      },
+      "loop_first_call_seconds": 0.1646554000035394,
+      "dispatch_first_call_seconds": 0.01600709999911487,
+      "warm_seconds": {
+        "python": [
+          0.013141700008418411,
+          0.012900600006105378,
+          0.013834299985319376,
+          0.01330169997527264,
+          0.013155599997844547,
+          0.013065800012554973,
+          0.01296550000552088,
+          0.013110500003676862,
+          0.013394199981121346,
+          0.013147200021194294,
+          0.013147499994374812
+        ],
+        "adapted_auto_opt_loop": [
+          0.0012577000015880913,
+          0.0013212999911047518,
+          0.0013283999869599938,
+          0.0012721000239253044,
+          0.0013226000010035932,
+          0.001294299989240244,
+          0.0013644999999087304,
+          0.0012660999782383442,
+          0.0013558999926317483,
+          0.0013484000228345394,
+          0.0013858000165782869
+        ],
+        "agent_optimize_dispatch": [
+          0.014049599994905293,
+          0.014003199990838766,
+          0.01408710001851432,
+          0.01418930001091212,
+          0.013844899978721514,
+          0.013787200005026534,
+          0.014068299991777167,
+          0.013633499998832121,
+          0.013836199999786913,
+          0.01374929997837171,
+          0.013884699990740046
+        ],
+        "adapted_auto_opt_threshold": [
+          0.0007931000145617872,
+          0.0006123000057414174,
+          0.000828499993076548,
+          0.0006355000077746809,
+          0.0007903999940026551,
+          0.000605799985351041,
+          0.0008078999817371368,
+          0.0006223999953363091,
+          0.0008227000071201473,
+          0.00060450000455603,
+          0.0007726000039838254
+        ]
+      },
+      "warm_median_seconds": {
+        "python": 0.013147200021194294,
+        "adapted_auto_opt_loop": 0.0013226000010035932,
+        "agent_optimize_dispatch": 0.013884699990740046,
+        "adapted_auto_opt_threshold": 0.0007726000039838254
+      },
+      "output_sha256": "780e2b85eb4cd11e5511b9cd43c66ec0f3c9d93733a70e5faa3e56dc0b7a6bc2",
+      "isolated_process_memory_including_imports_and_jit": {
+        "python": {
+          "first_function_call_seconds": 0.014749199996003881,
+          "peak_process_rss_bytes": 108040192
+        },
+        "loop": {
+          "first_function_call_seconds": 0.2938607999822125,
+          "peak_process_rss_bytes": 146939904
+        },
+        "threshold": {
+          "first_function_call_seconds": 0.2858721000084188,
+          "peak_process_rss_bytes": 146067456
+        },
+        "dispatch": {
+          "first_function_call_seconds": 0.015515000006416813,
+          "peak_process_rss_bytes": 109723648
+        }
+      }
+    }
+  }
+}

@@ -1,5 +1,46 @@
 # First-round implementation plan
 
+## Active investigations (November 12, 2026)
+
+[#9](https://github.com/gordonwatts/agent-optimize/issues/9) tracks two authorized
+investigations: compare the auto-opt iterative agent workflow with agent-optimize,
+and independently improve raw Python/Awkward q16 before checking translation.
+Execution is active; the older November 10 completion status below applies only
+to the reporting delivery. The manager owns standing portfolio monitoring.
+
+Use cached delivered data (7,552 selected events), identical environments and
+explicit timing boundaries. Profile before changes, retain failed candidates,
+verify software equivalence, and distinguish it from unresolved physics validation.
+Measure warm full reconstruction, first-use/compilation and optimization effort
+separately. Auto-opt revision `56cbad7d561097037eefaecc5440268d83c6b9a3`
+contains an instruction template and an AGC configuration, not an executable
+compiler. Compare an explicitly adapted iterative workflow; do not claim to run
+the unrelated AGC application unchanged or infer equal agent budgets.
+
+The q16_raw subagent owns raw-source experiments and benchmark evidence. The
+q16_codegen subagent owns measured assignment scheduling and focused checks.
+The primary agent owns comparative methodology and remaining shared workloads.
+The existing hourly portfolio review was checked through its supported view and
+its local configuration: ACTIVE. The manager's monitoring record already tracks
+this active owning chat; no duplicate schedule was created.
+No replacement adoption is authorized. Any new PR remains draft pending approval.
+
+Measured progress: guarded pure NumPy q16 reconstructs all 7,552 events exactly
+in 0.328 s versus 5.705 s supplied Python at the original 235 groups; 174
+synthetic/edge comparisons pass. Its grouping source remains unsupported by the
+translator. Generic assignment scheduling improves kernel and full-adapter
+timings; fresh capture passes 108/108 checks and saved dispatch is observed.
+The actual 1,024-entry ROOT reader preserves selected input values/order/dtypes
+exactly and yields 30 groups: saved dispatch 0.0322 s warm, 3.629 s first pass
+including compilation. This is now the CLI default with a 128-entry override.
+Three shared synthetic workloads, profiles, startup/RSS, unsupported cases and
+the adapted-auto-opt methodology are recorded in docs/examples/workflow-comparison.md.
+
+Branch `codex/q16-workflow-comparison` is based on the current reporting draft
+branch at `9c9004a`; changes will be proposed as a separate stacked draft. Final
+offline regression and documentation checks are in progress. No new model API
+requests were made. No technical blocker prevents these validation checks.
+
 ## Current project work (November 10, 2026)
 
 Keep backlog items in GitHub issues and use Typer for Python CLI work. Gordon
@@ -33,9 +74,12 @@ with `fix #6` and `fix #7`. The real-data q16 sample is
 measured batch timings and both verified source implementations. The simplest
 command was verified in a clean script-owned uv environment:
 `agent-optimize run --report examples/q16_ttbar.py --synthetic-events 128`.
-The Windows full run passed 410 tests (3 skipped); newer focused accounting,
-provider and search checks passed 89 tests (1 skipped). A final full run and
-fresh CI are in progress. No paid API calls are needed. The manager confirmed standing hourly
+The final Windows full run passed 413 tests (3 skipped); focused accounting,
+provider and search checks also passed. CI at `647e7ed` passed every Windows,
+Linux and macOS Python 3.12/3.13 job, script-owned environments, q16 dependencies
+and strict docs. Implementation and validation are complete. PR #8 remains
+draft awaiting Gordon's explicit review/approval. No technical blocker or
+outstanding implementation question is known; no owner execution remains active. No paid API calls are needed. The manager confirmed standing hourly
 portfolio monitoring ACTIVE and owns its lifecycle; no separate schedule was
 created by this project.
 
