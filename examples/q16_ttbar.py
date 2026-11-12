@@ -2,7 +2,7 @@
 # /// script
 # requires-python = ">=3.13,<3.14"
 # dependencies = [
-#   "agent-optimize @ git+https://github.com/gordonwatts/agent-optimize.git@aff0fb89c537fb71d11a5af7f8f10d3c323bb2a8",
+#   "agent-optimize @ git+https://github.com/gordonwatts/agent-optimize.git@cd718741e008f49dad1d246b0e12e48c84322106",
 #   "typer>=0.12",
 #   "func_adl_servicex_xaodr25",
 #   "servicex>=3.0",
