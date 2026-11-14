@@ -2,13 +2,13 @@
 # /// script
 # requires-python = ">=3.13,<3.14"
 # dependencies = [
-#   "agent-optimize @ git+https://github.com/gordonwatts/agent-optimize.git@cd718741e008f49dad1d246b0e12e48c84322106",
+#   "agent-optimize @ git+https://github.com/gordonwatts/agent-optimize.git@main",
 #   "typer>=0.12",
 #   "func_adl_servicex_xaodr25",
 #   "servicex>=3.0",
 #   "jinja2",
 #   "uproot>=5",
-#   "awkward>=2.8,<2.15",
+#   "awkward>=2.8,<3",
 #   "numpy",
 #   "matplotlib",
 # ]

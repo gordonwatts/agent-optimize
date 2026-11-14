@@ -62,27 +62,26 @@ All reconstructed values match the supplied Python bit for bit. A separate
 reader check verified that using 1,024-entry reads preserves the selected input
 values, dtypes, jet-list lengths and event order from 128-entry reads.
 
-The package and standalone example require Awkward below 2.15 because its changed
-numeric-backend state is outside the current reference verifier's supported
-dependency state. Verification rules have not been relaxed.
-
 ## Run and reproduce
 
 The example owns its Python 3.13 environment through inline uv metadata, including
-a pinned agent-optimize revision. Ordinary execution fetches one ServiceX file
+agent-optimize from the head of `main`. Ordinary execution fetches one ServiceX file
 and writes `plot_1.png`:
 
 ```bash
 uv run --script examples/q16_ttbar.py --n-files 1 --output-dir plots/q16
 ```
 
-ServiceX credentials remain in your local configuration. Under WSL, a Windows
-configuration may need `--servicex-config /mnt/c/Users/YOUR_NAME/servicex.yaml`.
 `--n-files 0` requests the whole dataset. To reuse already transformed query
 output without ServiceX, use `--input-file delivered.root` instead.
 
-Install the generic CLI with `uv tool install --editable .` for this checkout,
-then record inputs, generate and check a replacement, and save it:
+Install the generic CLI directly from GitHub; no repository checkout is needed:
+
+```bash
+uv tool install git+https://github.com/gordonwatts/agent-optimize.git@main
+```
+
+Then record inputs, generate and check a replacement, and save it:
 
 ```bash
 agent-optimize run --report --artifact-root .agent-optimize/q16 --verification-groups 2 examples/q16_ttbar.py --input-file delivered.root --output-dir plots/q16
