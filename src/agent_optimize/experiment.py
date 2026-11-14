@@ -113,6 +113,33 @@ def _trusted_function(value):
         raise UnsupportedReference("import callable does not match its installed library source")
 
 
+def _awkward_numpy_backend_compat_state(backend):
+    """Validate Awkward 2.15's stock kernel cache, then omit its warmup state."""
+    actual = vars(backend)
+    if "_new_kernel" not in vars(type(backend)):
+        return actual
+    import ctypes
+    import awkward_cpp.cpu_kernels
+    from awkward._kernels import NumpyKernel
+    cache = actual.get("_kernels")
+    if type(cache) is not dict or len(cache) > 256:
+        raise UnsupportedReference("modified Awkward kernel cache is unsupported")
+    for key, kernel in cache.items():
+        impl = awkward_cpp.cpu_kernels.kernel.get(key)
+        if type(kernel) is not NumpyKernel or impl is None:
+            raise UnsupportedReference("modified Awkward kernel cache is unsupported")
+        pointers = tuple(issubclass(t, ctypes._Pointer) for t in impl.argtypes)
+        signature = tuple(ctypes.c_void_p if pointer else t for pointer, t in zip(pointers, impl.argtypes, strict=True))
+        fields = vars(kernel).copy()
+        call = fields.pop("_call", None)
+        if (fields != {"_impl": impl, "_key": key, "_is_pointer": pointers}
+                or type(call) is not ctypes.CFUNCTYPE(impl.restype, *signature)
+                or call.argtypes != signature or call.restype is not impl.restype
+                or ctypes.cast(call, ctypes.c_void_p).value != ctypes.cast(impl, ctypes.c_void_p).value):
+            raise UnsupportedReference("modified Awkward kernel cache is unsupported")
+    return {key: value for key, value in actual.items() if key != "_kernels"}
+
+
 def _binding_fingerprint(value):
     """Conservative state fingerprints, with no user callable replacements.
 
@@ -200,30 +227,7 @@ def _binding_fingerprint(value):
             expected = {UnknownLength: (unknown_length, {}), NumpyBackend: (NumpyBackend.instance(), {"_numpy": Numpy.instance()}), Numpy: (Numpy.instance(), {"_module": importlib.import_module("numpy")})}
             if type(item) in expected:
                 singleton, attrs = expected[type(item)]
-                actual = vars(item)
-                # Awkward 2.15 memoizes CPU kernel wrappers. Cache population is
-                # benign only while every wrapper still calls its stock kernel.
-                if type(item) is NumpyBackend and "_new_kernel" in vars(NumpyBackend):
-                    import ctypes
-                    import awkward_cpp.cpu_kernels
-                    from awkward._kernels import NumpyKernel
-                    cache = actual.get("_kernels")
-                    if type(cache) is not dict or len(cache) > 256:
-                        raise UnsupportedReference("modified Awkward kernel cache is unsupported")
-                    for key, kernel in cache.items():
-                        impl = awkward_cpp.cpu_kernels.kernel.get(key)
-                        if type(kernel) is not NumpyKernel or impl is None:
-                            raise UnsupportedReference("modified Awkward kernel cache is unsupported")
-                        pointers = tuple(issubclass(t, ctypes._Pointer) for t in impl.argtypes)
-                        signature = tuple(ctypes.c_void_p if pointer else t for pointer, t in zip(pointers, impl.argtypes, strict=True))
-                        fields = vars(kernel).copy()
-                        call = fields.pop("_call", None)
-                        if (fields != {"_impl": impl, "_key": key, "_is_pointer": pointers}
-                                or type(call) is not ctypes.CFUNCTYPE(impl.restype, *signature)
-                                or call.argtypes != signature or call.restype is not impl.restype
-                                or ctypes.cast(call, ctypes.c_void_p).value != ctypes.cast(impl, ctypes.c_void_p).value):
-                            raise UnsupportedReference("modified Awkward kernel cache is unsupported")
-                    actual = {key: value for key, value in actual.items() if key != "_kernels"}
+                actual = _awkward_numpy_backend_compat_state(item) if type(item) is NumpyBackend else vars(item)
                 if item is not singleton or actual != attrs:
                     raise UnsupportedReference("modified Awkward numeric singleton is unsupported")
                 methods = {}
