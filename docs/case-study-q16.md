@@ -8,13 +8,6 @@ distinct four-jet assignment. The winning assignment minimizes
 `abs(m_had - 172.5) + abs(m_lep - 172.5)`. The output is one reconstructed
 top-pair mass per selected event and `plot_1.png`.
 
-The November 12 [source and workflow investigation](examples/workflow-comparison.md)
-measures additional raw-source and compiler improvements. The CLI now reads
-1,024 ROOT entries at a time before selection; use `--events-per-read 128` to
-reproduce the smaller input groups used by the historical results below. Larger
-groups reduce repeated array/dispatch overhead while increasing reference-path
-memory use. The numerical reconstruction boundary is unchanged.
-
 The analysis has two different costs: constructing the candidate assignments,
 and scoring those candidates. The current example optimizes both stages, together with neutrino reconstruction.
 ServiceX delivery, ROOT reading, event packing and plotting remain outside the
@@ -74,10 +67,42 @@ library pin is honored; no q16-specific installation or active-environment
 modification is needed. The [user guide](index.md) describes current metadata
 support and the explicit command form for already prepared environments.
 
-Each recorded call contains the selected events from one group of up to 128
+Each recorded call contains the selected events from one group of up to 1,024
 ROOT entries. The number of selected events varies between groups. Capture and
 search budgets still apply. Later groups execute the original Python function
 during recording without saving additional example inputs.
+
+### November 13 follow-up timing
+
+The CLI now defaults to 1,024 ROOT entries per read before selection. Use
+`--events-per-read 128` for the historical smaller groups and lower reference
+memory use. The numerical boundary is unchanged; reusable assignment arithmetic
+is scheduled earlier and the final mass is calculated only when the winner changes.
+
+Fresh measurement on the same cached file (7,552 events, 30 groups; three
+alternating warm passes, Windows Python 3.13):
+
+| Full reconstruction | Median |
+| --- | ---: |
+| Supplied Python | 1.015773 s |
+| Current Python reference | 1.307562 s |
+| Ordinary saved dispatch | 0.050214 s |
+
+A preceding reader-validation run measured 0.032187 s warm and 4.227681 s
+first use; short warm timings vary between runs. These are fresh November 13
+measurements, not a new fixed performance guarantee.
+
+First dispatched pass including compilation: **3.944235 s**. Warm timings include
+packing/dispatch and exclude ROOT reading, ServiceX and plotting. All outputs
+match bit for bit; selected input values, dtypes, jet counts and order also match
+128-entry reads. Historical timings elsewhere below retain their original input
+group sizes and dates; they are not new measurements or a compiler-only comparison.
+
+Reproduce in the prepared environment:
+
+```text
+python -m benchmarks.q16_reconstruction --input-file delivered.root --artifact-root PATH_TO_SAVED_ARTIFACT --events-per-read 1024 --repeats 3
+```
 
 The deterministic local provider proposes a Numba loop, checks the frozen
 reference and mandatory cases, and measures ordinary dispatch before deciding
