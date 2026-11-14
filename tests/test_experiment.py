@@ -11,6 +11,27 @@ THRESHOLD = 30
 MUTABLE = [30]
 
 
+def test_numpy_backend_cache_warmup_is_stable_but_replacements_are_rejected(monkeypatch):
+    from awkward._backends.numpy import NumpyBackend
+    from agent_optimize.experiment import _binding_fingerprint
+
+    backend = NumpyBackend.instance()
+    before = _binding_fingerprint(backend)
+    ak.sum(ak.Array([[1., 2.], []]), axis=1)
+    assert _binding_fingerprint(backend) == before
+    with monkeypatch.context() as change:
+        change.setattr(backend, "_kernels", {("not-a-stock-kernel",): object()}, raising=False)
+        with pytest.raises(UnsupportedReference, match="modified Awkward"):
+            _binding_fingerprint(backend)
+    cache = vars(backend).get("_kernels")
+    if cache:
+        kernel = next(iter(cache.values()))
+        with monkeypatch.context() as change:
+            change.setattr(kernel, "_call", lambda *args: None)
+            with pytest.raises(UnsupportedReference, match="modified Awkward kernel cache"):
+                _binding_fingerprint(backend)
+
+
 @optimize
 def constant_reference(events, threshold=THRESHOLD):
     selected = events[events > THRESHOLD]

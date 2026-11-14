@@ -215,18 +215,19 @@ def candidate_source(graph, contract):
         return f"({render(n['left'])} {op} {render(n['right'])})"
 
     # Reconstruct dependency order after JSON serialization (which sorts keys).
-    ordered, varying = {}, {}
+    ordered, depths = {}, {}
     def visit(n):
         if n["op"] == "var":
             name = n["name"]
             if name not in ordered:
-                varying[name] = visit(graph.expressions[name])
+                depths[name] = visit(graph.expressions[name])
                 ordered[name] = graph.expressions[name]
-            return varying[name]
+            return depths[name]
         children = [visit(v) for v in n.values() if isinstance(v, dict)]
-        return n["op"] in ("index", "field") or any(children)
-    for n in (graph.score, graph.value):
-        visit(n)
+        return max([n["slot"] if n["op"] in ("index", "field") else -1, *children])
+    visit(graph.score)
+    score_bindings = set(ordered)
+    visit(graph.value)
     def expand(n):
         if n["op"] == "var":
             return expand(graph.expressions[n["name"]])
@@ -256,10 +257,14 @@ def candidate_source(graph, contract):
         temporary += 1
         lines.append(indent + f"{name} = {render(shallow)}")
         return name
-    for name, expr in ordered.items():
-        if not varying[name]:
-            code = emit(expr, "        ")
-            lines.append("        " + f"v_{name} = {code}")
+    # A score binding is invariant inside loops deeper than its last index.
+    # Emit dependencies in their original topological order at that depth.
+    def emit_bindings(depth, indent):
+        for name, expr in ordered.items():
+            if name in score_bindings and depths[name] == depth:
+                code = emit(expr, indent)
+                lines.append(indent + f"v_{name} = {code}")
+    emit_bindings(-1, "        ")
     indent = "        "
     if -1 in conditions:
         lines.append(indent + "if " + " and ".join(conditions[-1]) + ":")
@@ -270,11 +275,16 @@ def candidate_source(graph, contract):
         if slot in conditions:
             lines.append(indent + "if " + " and ".join(conditions[slot]) + ":")
             indent += "    "
+        emit_bindings(slot, indent)
+    lines += [indent + f"score = {render(graph.score)}", indent + "if not found or score < best_score:", indent + "    found = True", indent + "    best_score = score"]
+    # A value which loses the score comparison cannot contribute to the result.
+    # Keep shared score dependencies above; evaluate value-only bindings only
+    # when the first minimum changes. Preserve each expression's operand order.
     for name, expr in ordered.items():
-        if varying[name]:
-            code = emit(expr, indent)
-            lines.append(indent + f"v_{name} = {code}")
-    lines += [indent + f"score = {render(graph.score)}", indent + "if not found or score < best_score:", indent + "    found = True", indent + "    best_score = score", indent + f"    output[event] = np.float64(0) + {render(graph.value)}"]
+        if name not in score_bindings:
+            code = emit(expr, indent + "    ")
+            lines.append(indent + f"    v_{name} = {code}")
+    lines.append(indent + f"    output[event] = np.float64(0) + {render(graph.value)}")
     lines.append("    return output")
     return "\n".join(lines) + "\n"
 

@@ -37,9 +37,12 @@ def main():
     parser.add_argument("--synthetic-events", type=int, default=0, help="offline software/performance evidence only")
     parser.add_argument("--artifact-root", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--events-per-read", type=int, default=128)
     args = parser.parse_args()
     if args.repeats < 1:
         parser.error("--repeats must be positive")
+    if args.events_per_read < 1:
+        parser.error("--events-per-read must be positive")
     os.environ["AGENT_OPTIMIZE_ARTIFACT_ROOT"] = str(args.artifact_root.resolve())
     os.environ["AGENT_OPTIMIZE_MODE"] = "fast"
     if os.environ.get("AGENT_OPTIMIZE_SESSION"):
@@ -48,7 +51,7 @@ def main():
     # Match the identity of the same function when the example runs as a script.
     module.reconstruct_events.__wrapped__.__module__ = "__main__"
     original = load("q16_supplied_reference", ROOT / "tests/fixtures/q16_reference.py")
-    batches = list(module.synthetic_batches(args.synthetic_events) if args.synthetic_events else module.read_events(args.input_file or []))
+    batches = list(module.synthetic_batches(args.synthetic_events) if args.synthetic_events else module.read_events(args.input_file or [], step_size=args.events_per_read))
     if not batches:
         parser.error("no selected events")
     decorated = module.reconstruct_events
