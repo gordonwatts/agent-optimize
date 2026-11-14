@@ -74,6 +74,11 @@ during recording without saving additional example inputs.
 
 ### November 13 follow-up timing
 
+These results use Awkward 2.14.0. The package and standalone example require
+Awkward below 2.15: its changed numeric-backend state is outside the current
+reference verifier's supported dependency state. Supporting it requires separate
+compatibility validation; the verifier is not relaxed by this PR.
+
 The CLI now defaults to 1,024 ROOT entries per read before selection. Use
 `--events-per-read 128` for the historical smaller groups and lower reference
 memory use. The numerical boundary is unchanged; reusable assignment arithmetic

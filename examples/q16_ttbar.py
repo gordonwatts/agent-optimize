@@ -8,7 +8,7 @@
 #   "servicex>=3.0",
 #   "jinja2",
 #   "uproot>=5",
-#   "awkward>=2",
+#   "awkward>=2.8,<2.15",
 #   "numpy",
 #   "matplotlib",
 # ]
